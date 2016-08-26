@@ -53,6 +53,7 @@ int main (int argc, char **argv)
         p -> fChain ->SetBranchStatus("fatjet_eta",1);
         p -> fChain ->SetBranchStatus("fatjet_phi",1);
         p -> fChain ->SetBranchStatus("fatjet_m",1);
+
         p -> fChain ->SetBranchStatus("weight",1);
         p -> fChain ->SetBranchStatus("passedTriggers",1);
         p -> fChain ->SetBranchStatus("jet_clean_passLooseBad",1);
@@ -76,7 +77,7 @@ int main (int argc, char **argv)
         p -> fChain ->SetBranchStatus("jet_isFlt77",1);
         p -> fChain ->SetBranchStatus("jet_isFlt85",1);
 
-
+	p -> fChain ->SetBranchStatus("fatjet_NTrimSubjets",1);
 
         //Cutflow
         TH1F *h_cutflow = new TH1F("h_cutflow","Cutflow",6,0,6);
@@ -107,7 +108,7 @@ int main (int argc, char **argv)
 		vector<int> *mini_jet_bmatched_flt70 =0;
 		vector<int> *mini_jet_bmatched_flt77 =0;
 		vector<int> *mini_jet_bmatched_flt85 =0;
-
+		vector<int> *mini_jet_NTrimSubjets = 0;
 		mini->Branch("runNumber",&mini_runNumber);
 		mini->Branch("mcChannelNumber",&mini_mcChannelNumber);
 		mini->Branch("eventNumber",&mini_eventNumber);
@@ -139,7 +140,7 @@ int main (int argc, char **argv)
 		mini->Branch("jet_bmatched_Flt70",&mini_jet_bmatched_flt70);
 		mini->Branch("jet_bmatched_Flt77",&mini_jet_bmatched_flt77);
 		mini->Branch("jet_bmatched_Flt85",&mini_jet_bmatched_flt85);
-
+		mini->Branch("jet_NTrimSubjets",&mini_jet_NTrimSubjets);
 		mini->Branch("dEta",&mini_dEta);
 		mini->Branch("HT_ak4",&mini_HT);
 		mini->Branch("MJ",&mini_MJ);
@@ -273,6 +274,7 @@ int main (int argc, char **argv)
 		    vector<double> jet_eta;
 		    vector<double> jet_phi;
 		    vector<double> jet_m;
+		    vector<int> jet_NTrimSubjets;
 		    mini_HT = 0; mini_MJ = 0;
 		    int NsoftJet = 0;
 		    double dummy_m;
@@ -287,6 +289,7 @@ int main (int argc, char **argv)
 			  jet_pt.push_back(thisfatjet.Pt()/1000);
 			  jet_eta.push_back(thisfatjet.Eta());
 			  jet_phi.push_back(thisfatjet.Phi());
+			  jet_NTrimSubjets.push_back((*p->fatjet_NTrimSubjets)[l]);
 			  dummy_m = thisfatjet.M()/1000;
 			  if(dummy_m < 0) dummy_m = 0;
 			  jet_m.push_back(dummy_m);
@@ -302,7 +305,7 @@ int main (int argc, char **argv)
 		    reorder(jet_eta,idx);
 		    reorder(jet_phi,idx);
 		    reorder(jet_m,idx);
-
+		    reorder(jet_NTrimSubjets,idx);
 		    //match to ak4 bjets
 		    double dEta, dPhi, dR;
 		    vector<int> jet_bmatched_fix60;
@@ -451,7 +454,7 @@ int main (int argc, char **argv)
 		     mini_jet_bmatched_fix70 = &jet_bmatched_fix70;
 		     mini_jet_bmatched_fix77 = &jet_bmatched_fix77;
 		     mini_jet_bmatched_fix85 = &jet_bmatched_fix85;
-
+		     mini_jet_NTrimSubjets = &jet_NTrimSubjets;
 		     mini->GetEntry(pass_evt_counter);
 		     mini->Fill();
 

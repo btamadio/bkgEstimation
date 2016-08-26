@@ -56,6 +56,7 @@ public :
    vector<int>     *jet_bmatched_Flt70;
    vector<int>     *jet_bmatched_Flt77;
    vector<int>     *jet_bmatched_Flt85;
+   vector<int>     *jet_NTrimSubjets; 
    Double_t        dEta;
    Double_t        HT_ak4;
    Double_t        MJ;
@@ -83,6 +84,7 @@ public :
    TBranch        *b_jet_eta;   //!
    TBranch        *b_jet_phi;   //!
    TBranch        *b_jet_m;   //!
+   TBranch        *b_jet_NTrimSubjets; //!
    TBranch        *b_jet_bmatched_Fix60;   //!
    TBranch        *b_jet_bmatched_Fix70;   //!
    TBranch        *b_jet_bmatched_Fix77;   //!
@@ -172,6 +174,7 @@ void miniTree::Init(TTree *tree)
    jet_bmatched_Flt70 = 0;
    jet_bmatched_Flt77 = 0;
    jet_bmatched_Flt85 = 0;
+   jet_NTrimSubjets = 0;
    // Set branch addresses and branch pointers
    if (!tree) return;
    fChain = tree;
@@ -192,7 +195,6 @@ void miniTree::Init(TTree *tree)
    fChain->SetBranchAddress("nbjet_Fix70", &nbjet_Fix70, &b_nbjet_Fix70);
    fChain->SetBranchAddress("nbjet_Fix77", &nbjet_Fix77, &b_nbjet_Fix77);
    fChain->SetBranchAddress("nbjet_Fix85", &nbjet_Fix85, &b_nbjet_Fix85);
-
    fChain->SetBranchAddress("nbjet_Flt60", &nbjet_Flt60, &b_nbjet_Flt60);
    fChain->SetBranchAddress("nbjet_Flt70", &nbjet_Flt70, &b_nbjet_Flt70);
    fChain->SetBranchAddress("nbjet_Flt77", &nbjet_Flt77, &b_nbjet_Flt77);
@@ -210,6 +212,7 @@ void miniTree::Init(TTree *tree)
    fChain->SetBranchAddress("jet_bmatched_Flt70", &jet_bmatched_Flt70, &b_jet_bmatched_Flt70);
    fChain->SetBranchAddress("jet_bmatched_Flt77", &jet_bmatched_Flt77, &b_jet_bmatched_Flt77);
    fChain->SetBranchAddress("jet_bmatched_Flt85", &jet_bmatched_Flt85, &b_jet_bmatched_Flt85);
+   fChain->SetBranchAddress("jet_NTrimSubjets", &jet_NTrimSubjets, &b_jet_NTrimSubjets);
    fChain->SetBranchAddress("dEta", &dEta, &b_dEta);
    fChain->SetBranchAddress("HT_ak4", &HT_ak4, &b_HT_ak4);
    fChain->SetBranchAddress("MJ", &MJ, &b_MJ);

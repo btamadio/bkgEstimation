@@ -245,6 +245,13 @@ void reorder(vector<double> &v, vector<int> const &order )  {
     }
 }
 
+void reorder(vector<int> &v, vector<int> const &order )  {   
+    for (unsigned int s = 1, d; s < order.size(); ++ s ) {
+      for ( d = order[s]; d < s; d = order[d] ) ;
+      if ( d == s ) while ( d = order[d], d != s ) swap( v[s], v[d] );
+    }
+}
+
 vector<int> sort_indices(vector<double> const &v) {
 
   // initialize original index locations

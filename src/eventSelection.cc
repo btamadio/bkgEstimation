@@ -52,7 +52,7 @@ int main (int argc, char **argv)
         p -> fChain ->SetBranchStatus("fatjet_pt",1);
         p -> fChain ->SetBranchStatus("fatjet_eta",1);
         p -> fChain ->SetBranchStatus("fatjet_phi",1);
-        p -> fChain ->SetBranchStatus("fatjet_E",1);
+        p -> fChain ->SetBranchStatus("fatjet_m",1);
         p -> fChain ->SetBranchStatus("weight",1);
         p -> fChain ->SetBranchStatus("passedTriggers",1);
         p -> fChain ->SetBranchStatus("jet_clean_passLooseBad",1);
@@ -63,9 +63,20 @@ int main (int argc, char **argv)
         p -> fChain ->SetBranchStatus("weight_jet__MV2c20_SFFlt70",1);
         p -> fChain ->SetBranchStatus("weight_jet__MV2c20_SFFix70",1);
         */
+        p -> fChain -> SetBranchStatus("weight_jet_SFFix60",1);
         p -> fChain -> SetBranchStatus("weight_jet_SFFix70",1);
+        p -> fChain -> SetBranchStatus("weight_jet_SFFix77",1);
+        p -> fChain -> SetBranchStatus("weight_jet_SFFix85",1);
+        p -> fChain ->SetBranchStatus("jet_isFix60",1);
         p -> fChain ->SetBranchStatus("jet_isFix70",1);
+        p -> fChain ->SetBranchStatus("jet_isFix77",1);
+        p -> fChain ->SetBranchStatus("jet_isFix85",1);
+        p -> fChain ->SetBranchStatus("jet_isFlt60",1);
         p -> fChain ->SetBranchStatus("jet_isFlt70",1);
+        p -> fChain ->SetBranchStatus("jet_isFlt77",1);
+        p -> fChain ->SetBranchStatus("jet_isFlt85",1);
+
+
 
         //Cutflow
         TH1F *h_cutflow = new TH1F("h_cutflow","Cutflow",6,0,6);
@@ -80,7 +91,7 @@ int main (int argc, char **argv)
         TFile f("miniTree.root","recreate");
         TTree *mini = new TTree("miniTree","miniTree");
 
-		int mini_runNumber,mini_mcChannelNumber=-1,mini_lumiBlock,mini_njet,mini_nbjet_fix70,mini_nbjet_flt70,mini_njet_ak4, mini_njet_soft;
+	int mini_runNumber,mini_mcChannelNumber=-1,mini_lumiBlock,mini_njet,mini_nbjet_fix60,mini_nbjet_fix70,mini_nbjet_fix77,mini_nbjet_fix85,mini_nbjet_flt60,mini_nbjet_flt70,mini_nbjet_flt77,mini_nbjet_flt85,mini_njet_ak4, mini_njet_soft;
 		Long64_t mini_eventNumber;
 		bool mini_isMC;
 		double mini_HT, mini_MJ,mini_wt, mini_dEta,mini_mu;
@@ -88,8 +99,14 @@ int main (int argc, char **argv)
 		vector<double> *mini_jet_eta= 0;
 		vector<double> *mini_jet_phi = 0;
 		vector<double> *mini_jet_m =0;
+		vector<int> *mini_jet_bmatched_fix60 =0;
 		vector<int> *mini_jet_bmatched_fix70 =0;
+		vector<int> *mini_jet_bmatched_fix77 =0;
+		vector<int> *mini_jet_bmatched_fix85 =0;
+		vector<int> *mini_jet_bmatched_flt60 =0;
 		vector<int> *mini_jet_bmatched_flt70 =0;
+		vector<int> *mini_jet_bmatched_flt77 =0;
+		vector<int> *mini_jet_bmatched_flt85 =0;
 
 		mini->Branch("runNumber",&mini_runNumber);
 		mini->Branch("mcChannelNumber",&mini_mcChannelNumber);
@@ -101,18 +118,31 @@ int main (int argc, char **argv)
 		mini->Branch("njet",&mini_njet);
 		mini->Branch("njet_soft",&mini_njet_soft);
 		mini->Branch("njet_ak4",&mini_njet_ak4);
+		mini->Branch("nbjet_Fix60",&mini_nbjet_fix60);
 		mini->Branch("nbjet_Fix70",&mini_nbjet_fix70);
+		mini->Branch("nbjet_Fix77",&mini_nbjet_fix77);
+		mini->Branch("nbjet_Fix85",&mini_nbjet_fix85);
+		mini->Branch("nbjet_Flt60",&mini_nbjet_flt60);
 		mini->Branch("nbjet_Flt70",&mini_nbjet_flt70);
+		mini->Branch("nbjet_Flt77",&mini_nbjet_flt77);
+		mini->Branch("nbjet_Flt85",&mini_nbjet_flt85);
 		mini->Branch("jet_pt",&mini_jet_pt);
 		mini->Branch("jet_eta",&mini_jet_eta);
 		mini->Branch("jet_phi",&mini_jet_phi);
 		mini->Branch("jet_m",&mini_jet_m);
+		mini->Branch("jet_bmatched_Fix60",&mini_jet_bmatched_fix60);
 		mini->Branch("jet_bmatched_Fix70",&mini_jet_bmatched_fix70);
+		mini->Branch("jet_bmatched_Fix77",&mini_jet_bmatched_fix77);
+		mini->Branch("jet_bmatched_Fix85",&mini_jet_bmatched_fix85);
+
+		mini->Branch("jet_bmatched_Flt60",&mini_jet_bmatched_flt60);
 		mini->Branch("jet_bmatched_Flt70",&mini_jet_bmatched_flt70);
+		mini->Branch("jet_bmatched_Flt77",&mini_jet_bmatched_flt77);
+		mini->Branch("jet_bmatched_Flt85",&mini_jet_bmatched_flt85);
+
 		mini->Branch("dEta",&mini_dEta);
 		mini->Branch("HT_ak4",&mini_HT);
 		mini->Branch("MJ",&mini_MJ);
-
 
 		 int numev = p->fChain->GetEntries();
 		 cout << "Total events to process: " << numev << endl;
@@ -155,29 +185,87 @@ int main (int argc, char **argv)
 		    h_cutflow->Fill(2);
 
 		     //Loop over small R jets
-		     int njet = (int)(*p->jet_pt).size(),bjet_counter_fix70 = 0,bjet_counter_flt70 = 0,ak4_counter=0;
+		     int njet = (int)(*p->jet_pt).size(),ak4_counter=0;
+
+		     //TODO: Fix this code using TLorentzVectors
+		     int bjet_counter_fix60=0,bjet_counter_fix70 = 0,bjet_counter_fix77=0,bjet_counter_fix85=0;
+		     int bjet_counter_flt60=0,bjet_counter_flt70 = 0,bjet_counter_flt77=0,bjet_counter_flt85=0;
+
+		     vector<double> bjet_flt60_eta;
 		     vector<double> bjet_flt70_eta;
+		     vector<double> bjet_flt77_eta;
+		     vector<double> bjet_flt85_eta;
+
+		     vector<double> bjet_fix60_eta;
 		     vector<double> bjet_fix70_eta;
+		     vector<double> bjet_fix77_eta;
+		     vector<double> bjet_fix85_eta;
+
+		     vector<double> bjet_flt60_phi;
 		     vector<double> bjet_flt70_phi;
+		     vector<double> bjet_flt77_phi;
+		     vector<double> bjet_flt85_phi;
+
+		     vector<double> bjet_fix60_phi;
 		     vector<double> bjet_fix70_phi;
+		     vector<double> bjet_fix77_phi;
+		     vector<double> bjet_fix85_phi;
+
 		    for( int k = 0 ; k < njet ; k ++ ){
 		       if( fabs((*p->jet_eta)[k]) > 2.8 ) continue ;
 		       if( (*p->jet_pt)[k] < 50 ) continue ;
 		       if((*p->jet_clean_passLooseBad)[k] == 0) continue;    
 		       ak4_counter++;
+		       if((*p->jet_isFix60)[k]) {
+				bjet_counter_fix60++;
+				//save kinematics to match to largeR jet
+				bjet_fix60_eta.push_back((*p->jet_eta)[k]);
+				bjet_fix60_phi.push_back((*p->jet_phi)[k]);
+		       }
 		       if((*p->jet_isFix70)[k]) {
 				bjet_counter_fix70++;
 				//save kinematics to match to largeR jet
 				bjet_fix70_eta.push_back((*p->jet_eta)[k]);
 				bjet_fix70_phi.push_back((*p->jet_phi)[k]);
-		      }
-		      if((*p->jet_isFlt70)[k]) {
-		      	bjet_counter_flt70++;
+		       }
+		       if((*p->jet_isFix77)[k]) {
+				bjet_counter_fix77++;
 				//save kinematics to match to largeR jet
-				bjet_flt70_eta.push_back((*p->jet_eta)[k]);
-				bjet_flt70_phi.push_back((*p->jet_phi)[k]);
-		      }
-		     }
+				bjet_fix77_eta.push_back((*p->jet_eta)[k]);
+				bjet_fix77_phi.push_back((*p->jet_phi)[k]);
+		       }
+		       if((*p->jet_isFix85)[k]) {
+				bjet_counter_fix85++;
+				//save kinematics to match to largeR jet
+				bjet_fix85_eta.push_back((*p->jet_eta)[k]);
+				bjet_fix85_phi.push_back((*p->jet_phi)[k]);
+		       }
+
+		       if((*p->jet_isFlt60)[k]) {
+			 bjet_counter_flt60++;
+			 //save kinematics to match to largeR jet
+			 bjet_flt60_eta.push_back((*p->jet_eta)[k]);
+			 bjet_flt60_phi.push_back((*p->jet_phi)[k]);
+		       }
+		       if((*p->jet_isFlt70)[k]) {
+			 bjet_counter_flt70++;
+			 //save kinematics to match to largeR jet
+			 bjet_flt70_eta.push_back((*p->jet_eta)[k]);
+			 bjet_flt70_phi.push_back((*p->jet_phi)[k]);
+		       }
+		       if((*p->jet_isFlt77)[k]) {
+			 bjet_counter_flt77++;
+			 //save kinematics to match to largeR jet
+			 bjet_flt77_eta.push_back((*p->jet_eta)[k]);
+			 bjet_flt77_phi.push_back((*p->jet_phi)[k]);
+		       }
+		       if((*p->jet_isFlt85)[k]) {
+			 bjet_counter_flt85++;
+			 //save kinematics to match to largeR jet
+			 bjet_flt85_eta.push_back((*p->jet_eta)[k]);
+			 bjet_flt85_phi.push_back((*p->jet_phi)[k]);
+		       }
+		    }
 
 			//Loop over fat jets
 		    int nfatjet = (int)(*p->fatjet_pt).size(), max_ind ;
@@ -193,7 +281,7 @@ int main (int argc, char **argv)
 		      if( fabs((*p->fatjet_eta)[l]) > 2.0 ) continue ;
 			  if( (*p->fatjet_pt)[l] < 200 ) continue ;
 			  TLorentzVector thisfatjet ;
-			  thisfatjet.SetPtEtaPhiE(  (*p->fatjet_pt)[l] ,  (*p->fatjet_eta)[l],  (*p->fatjet_phi)[l],  (*p->fatjet_E)[l] );
+			  thisfatjet.SetPtEtaPhiM(  (*p->fatjet_pt)[l] ,  (*p->fatjet_eta)[l],  (*p->fatjet_phi)[l],  (*p->fatjet_m)[l] );
 			  if( thisfatjet.M()/thisfatjet.Pt() > 1.0) continue;
 
 			  jet_pt.push_back(thisfatjet.Pt()/1000);
@@ -217,10 +305,29 @@ int main (int argc, char **argv)
 
 		    //match to ak4 bjets
 		    double dEta, dPhi, dR;
+		    vector<int> jet_bmatched_fix60;
 		    vector<int> jet_bmatched_fix70;
+		    vector<int> jet_bmatched_fix77;
+		    vector<int> jet_bmatched_fix85;
+
+		    vector<int> jet_bmatched_flt60;
 		    vector<int> jet_bmatched_flt70;
+		    vector<int> jet_bmatched_flt77;
+		    vector<int> jet_bmatched_flt85;
+
 		    bool matched = false;
 		    for(int k = 0; k < mini_njet; k++){
+		    	//fix60
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_fix60; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_fix60_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_fix60_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_fix60.push_back((int)matched);
+
 		    	//fix70
 		    	matched = false;
 		    	for(int l = 0; l < bjet_counter_fix70; l++){
@@ -232,6 +339,38 @@ int main (int argc, char **argv)
 		    	}
 		    	jet_bmatched_fix70.push_back((int)matched);
 
+		    	//fix77
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_fix77; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_fix77_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_fix77_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_fix77.push_back((int)matched);
+
+		    	//fix85
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_fix85; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_fix85_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_fix85_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_fix85.push_back((int)matched);
+
+		    	//flt60
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_flt60; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_flt60_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_flt60_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_flt60.push_back((int)matched);
 		    	//flt70
 		    	matched = false;
 		    	for(int l = 0; l < bjet_counter_flt70; l++){
@@ -242,6 +381,28 @@ int main (int argc, char **argv)
 		    		if(dR < 1.0) matched = true;
 		    	}
 		    	jet_bmatched_flt70.push_back((int)matched);
+		    	//flt77
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_flt77; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_flt77_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_flt77_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_flt77.push_back((int)matched);
+		    	//flt85
+		    	matched = false;
+		    	for(int l = 0; l < bjet_counter_flt85; l++){
+		    		dPhi = fabs(jet_phi[k] - bjet_flt85_phi[l]);
+		    		if(dPhi > 3.141) dPhi = 2*3.141 - dPhi;
+		    		dEta = fabs(jet_eta[k] - bjet_flt85_eta[l]);
+		    		dR = sqrt(dEta*dEta + dPhi*dPhi);
+		    		if(dR < 1.0) matched = true;
+		    	}
+		    	jet_bmatched_flt85.push_back((int)matched);
+
+
 		    }
 
 		    if(mini_njet == 0 || jet_pt[0] < 0.44) continue;
@@ -269,14 +430,28 @@ int main (int argc, char **argv)
 		     mini_isMC = isMC;
 		     mini_wt = wt;
 		     mini_njet_ak4 = ak4_counter;
+		     mini_nbjet_flt60 = bjet_counter_flt60;
 		     mini_nbjet_flt70 = bjet_counter_flt70;
+		     mini_nbjet_flt77 = bjet_counter_flt77;
+		     mini_nbjet_flt85 = bjet_counter_flt85;
+		     mini_nbjet_fix60 = bjet_counter_fix60;
 		     mini_nbjet_fix70 = bjet_counter_fix70;
+		     mini_nbjet_fix77 = bjet_counter_fix77;
+		     mini_nbjet_fix85 = bjet_counter_fix85;
 		     mini_jet_pt = &jet_pt;
 		     mini_jet_eta = &jet_eta;
 		     mini_jet_phi = &jet_phi;
 		     mini_jet_m = &jet_m;
+		     mini_jet_bmatched_flt60 = &jet_bmatched_flt60;
 		     mini_jet_bmatched_flt70 = &jet_bmatched_flt70;
+		     mini_jet_bmatched_flt77 = &jet_bmatched_flt77;
+		     mini_jet_bmatched_flt85 = &jet_bmatched_flt85;
+
+		     mini_jet_bmatched_fix60 = &jet_bmatched_fix60;
 		     mini_jet_bmatched_fix70 = &jet_bmatched_fix70;
+		     mini_jet_bmatched_fix77 = &jet_bmatched_fix77;
+		     mini_jet_bmatched_fix85 = &jet_bmatched_fix85;
+
 		     mini->GetEntry(pass_evt_counter);
 		     mini->Fill();
 

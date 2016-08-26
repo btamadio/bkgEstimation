@@ -71,8 +71,17 @@ int main (int argc, char **argv){
 
     double wt = p->weight; 
     int njet = p->njet; 
-    //int btags = p->nbjet_Fix70;
-    int btags = p->nbjet_Flt70;
+    int btags = -1;
+    if(config.CRdef == 4){ btags = p->nbjet_Fix60; }
+    if(config.CRdef == 5){ btags = p->nbjet_Fix70; }
+    if(config.CRdef == 6){ btags = p->nbjet_Fix77; }
+    if(config.CRdef == 7){ btags = p->nbjet_Fix85; }
+    if(config.CRdef == 8){ btags = p->nbjet_Flt60; }
+    if(config.CRdef == 9){ btags = p->nbjet_Flt70; }
+    if(config.CRdef == 10){ btags = p->nbjet_Flt77; }
+    if(config.CRdef == 11){ btags = p->nbjet_Flt85; }
+
+
     int b_tag = (int)((bool)btags);
     double dEta_cut = 1.4;
 
@@ -84,7 +93,7 @@ int main (int argc, char **argv){
     if(config.CRdef == 1 && !config.useVR) isCR = (njet == 3);
     if(config.CRdef == 2) isCR = (njet == 3 && ((isVR && b_tag == 1) || b_tag==0) && p->njet_soft ==2 ); //3+soft jets templates
     if(config.CRdef == 3) isCR = (njet == 4 && isVR); //4jVRtempl
-    if(config.CRdef == 4) isCR = (njet == 3 && ((isVR && b_tag == 1) || b_tag==0)); //b-matched templ
+    if(config.CRdef >= 4) isCR = (njet == 3 && ((isVR && b_tag == 1) || b_tag==0)); //b-matched templ
 
     for(int n = 0; n < min(njet,4); n++){
       h_pt[b_tag][n]->Fill((*p->jet_pt)[n],wt);
@@ -143,8 +152,15 @@ int main (int argc, char **argv){
     int bin,i,j,l;
     if(isCR){
     for(int k = 0; k < min(njet,4); k++){
-      //        if(config.CRdef == 4) b_tag = (*p->jet_bmatched_Fix70)[k];
-        if(config.CRdef == 4) b_tag = (*p->jet_bmatched_Flt70)[k];
+
+        if(config.CRdef == 4) b_tag = (*p->jet_bmatched_Fix60)[k];
+	if(config.CRdef == 5) b_tag = (*p->jet_bmatched_Fix70)[k];
+        if(config.CRdef == 6) b_tag = (*p->jet_bmatched_Fix77)[k];
+        if(config.CRdef == 7) b_tag = (*p->jet_bmatched_Fix85)[k];
+        if(config.CRdef == 8) b_tag = (*p->jet_bmatched_Flt60)[k];
+        if(config.CRdef == 9) b_tag = (*p->jet_bmatched_Flt70)[k];
+        if(config.CRdef == 10) b_tag = (*p->jet_bmatched_Flt77)[k];
+        if(config.CRdef == 11) b_tag = (*p->jet_bmatched_Flt85)[k];
 
         pt = (*p->jet_pt)[k];
         dummyPt = min(pt,config.ptBins[nPtBins]-0.001);

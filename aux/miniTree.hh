@@ -36,14 +36,26 @@ public :
    Int_t           njet;
    Int_t           njet_soft;
    Int_t           njet_ak4;
+   Int_t           nbjet_Fix60;
    Int_t           nbjet_Fix70;
+   Int_t           nbjet_Fix77;
+   Int_t           nbjet_Fix85;
+   Int_t           nbjet_Flt60;
    Int_t           nbjet_Flt70;
+   Int_t           nbjet_Flt77;
+   Int_t           nbjet_Flt85;
    vector<double>  *jet_pt;
    vector<double>  *jet_eta;
    vector<double>  *jet_phi;
    vector<double>  *jet_m;
+   vector<int>     *jet_bmatched_Fix60;
    vector<int>     *jet_bmatched_Fix70;
+   vector<int>     *jet_bmatched_Fix77;
+   vector<int>     *jet_bmatched_Fix85;
+   vector<int>     *jet_bmatched_Flt60;
    vector<int>     *jet_bmatched_Flt70;
+   vector<int>     *jet_bmatched_Flt77;
+   vector<int>     *jet_bmatched_Flt85;
    Double_t        dEta;
    Double_t        HT_ak4;
    Double_t        MJ;
@@ -59,14 +71,26 @@ public :
    TBranch        *b_njet;   //!
    TBranch        *b_njet_soft;   //!
    TBranch        *b_njet_ak4;   //!
+   TBranch        *b_nbjet_Fix60;   //!
    TBranch        *b_nbjet_Fix70;   //!
+   TBranch        *b_nbjet_Fix77;   //!
+   TBranch        *b_nbjet_Fix85;   //!
+   TBranch        *b_nbjet_Flt60;   //!
    TBranch        *b_nbjet_Flt70;   //!
+   TBranch        *b_nbjet_Flt77;   //!
+   TBranch        *b_nbjet_Flt85;   //!
    TBranch        *b_jet_pt;   //!
    TBranch        *b_jet_eta;   //!
    TBranch        *b_jet_phi;   //!
    TBranch        *b_jet_m;   //!
+   TBranch        *b_jet_bmatched_Fix60;   //!
    TBranch        *b_jet_bmatched_Fix70;   //!
+   TBranch        *b_jet_bmatched_Fix77;   //!
+   TBranch        *b_jet_bmatched_Fix85;   //!
+   TBranch        *b_jet_bmatched_Flt60;   //!
    TBranch        *b_jet_bmatched_Flt70;   //!
+   TBranch        *b_jet_bmatched_Flt77;   //!
+   TBranch        *b_jet_bmatched_Flt85;   //!
    TBranch        *b_dEta;   //!
    TBranch        *b_HT_ak4;   //!
    TBranch        *b_MJ;   //!
@@ -140,8 +164,14 @@ void miniTree::Init(TTree *tree)
    jet_eta = 0;
    jet_phi = 0;
    jet_m = 0;
+   jet_bmatched_Fix60 = 0;
    jet_bmatched_Fix70 = 0;
+   jet_bmatched_Fix77 = 0;
+   jet_bmatched_Fix85 = 0;
+   jet_bmatched_Flt60 = 0;
    jet_bmatched_Flt70 = 0;
+   jet_bmatched_Flt77 = 0;
+   jet_bmatched_Flt85 = 0;
    // Set branch addresses and branch pointers
    if (!tree) return;
    fChain = tree;
@@ -158,14 +188,28 @@ void miniTree::Init(TTree *tree)
    fChain->SetBranchAddress("njet", &njet, &b_njet);
    fChain->SetBranchAddress("njet_soft", &njet_soft, &b_njet_soft);
    fChain->SetBranchAddress("njet_ak4", &njet_ak4, &b_njet_ak4);
+   fChain->SetBranchAddress("nbjet_Fix60", &nbjet_Fix60, &b_nbjet_Fix60);
    fChain->SetBranchAddress("nbjet_Fix70", &nbjet_Fix70, &b_nbjet_Fix70);
+   fChain->SetBranchAddress("nbjet_Fix77", &nbjet_Fix77, &b_nbjet_Fix77);
+   fChain->SetBranchAddress("nbjet_Fix85", &nbjet_Fix85, &b_nbjet_Fix85);
+
+   fChain->SetBranchAddress("nbjet_Flt60", &nbjet_Flt60, &b_nbjet_Flt60);
    fChain->SetBranchAddress("nbjet_Flt70", &nbjet_Flt70, &b_nbjet_Flt70);
+   fChain->SetBranchAddress("nbjet_Flt77", &nbjet_Flt77, &b_nbjet_Flt77);
+   fChain->SetBranchAddress("nbjet_Flt85", &nbjet_Flt85, &b_nbjet_Flt85);
+
    fChain->SetBranchAddress("jet_pt", &jet_pt, &b_jet_pt);
    fChain->SetBranchAddress("jet_eta", &jet_eta, &b_jet_eta);
    fChain->SetBranchAddress("jet_phi", &jet_phi, &b_jet_phi);
    fChain->SetBranchAddress("jet_m", &jet_m, &b_jet_m);
+   fChain->SetBranchAddress("jet_bmatched_Fix60", &jet_bmatched_Fix60, &b_jet_bmatched_Fix60);
    fChain->SetBranchAddress("jet_bmatched_Fix70", &jet_bmatched_Fix70, &b_jet_bmatched_Fix70);
+   fChain->SetBranchAddress("jet_bmatched_Fix77", &jet_bmatched_Fix77, &b_jet_bmatched_Fix77);
+   fChain->SetBranchAddress("jet_bmatched_Fix85", &jet_bmatched_Fix85, &b_jet_bmatched_Fix85);
+   fChain->SetBranchAddress("jet_bmatched_Flt60", &jet_bmatched_Flt60, &b_jet_bmatched_Flt60);
    fChain->SetBranchAddress("jet_bmatched_Flt70", &jet_bmatched_Flt70, &b_jet_bmatched_Flt70);
+   fChain->SetBranchAddress("jet_bmatched_Flt77", &jet_bmatched_Flt77, &b_jet_bmatched_Flt77);
+   fChain->SetBranchAddress("jet_bmatched_Flt85", &jet_bmatched_Flt85, &b_jet_bmatched_Flt85);
    fChain->SetBranchAddress("dEta", &dEta, &b_dEta);
    fChain->SetBranchAddress("HT_ak4", &HT_ak4, &b_HT_ak4);
    fChain->SetBranchAddress("MJ", &MJ, &b_MJ);

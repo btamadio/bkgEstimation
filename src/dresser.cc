@@ -79,8 +79,16 @@ int main (int argc, char **argv){
     int njet = p->njet;
 
     if(njet < 3) continue;
-    //    int btags = p->nbjet_Fix70;
-    int btags = p->nbjet_Flt70;
+    int btags=0;
+    if(config.tmpType==4){ btags = p->nbjet_Fix60; }
+    if(config.tmpType==5){ btags = p->nbjet_Fix70; }
+    if(config.tmpType==6){ btags = p->nbjet_Fix77; }
+    if(config.tmpType==7){ btags = p->nbjet_Fix85; }
+    if(config.tmpType==8){ btags = p->nbjet_Flt60; }
+    if(config.tmpType==9){ btags = p->nbjet_Flt70; }
+    if(config.tmpType==10){ btags = p->nbjet_Flt77; }
+    if(config.tmpType==11){ btags = p->nbjet_Flt85; }
+
     int b_tag = (int)((bool)btags);
    double dEta_cut = 1.4;
 
@@ -101,8 +109,16 @@ int main (int argc, char **argv){
 
     for(int k = 0; k < min(4,njet); k++){
       //dress jet k
-      //      if(config.tmpType == 3) tmp_ind = (*p->jet_bmatched_Fix70)[k]; //b-matched templ
-      if(config.tmpType == 3) tmp_ind = (*p->jet_bmatched_Flt70)[k]; //b-matched templ
+
+      if(config.tmpType == 4) tmp_ind = (*p->jet_bmatched_Fix60)[k]; //b-matched templ
+      if(config.tmpType == 5) tmp_ind = (*p->jet_bmatched_Fix70)[k]; //b-matched templ
+      if(config.tmpType == 6) tmp_ind = (*p->jet_bmatched_Fix77)[k]; //b-matched templ
+      if(config.tmpType == 7) tmp_ind = (*p->jet_bmatched_Fix85)[k]; //b-matched templ
+      if(config.tmpType == 8) tmp_ind = (*p->jet_bmatched_Flt60)[k]; //b-matched templ
+      if(config.tmpType == 9) tmp_ind = (*p->jet_bmatched_Flt70)[k]; //b-matched templ
+      if(config.tmpType == 10) tmp_ind = (*p->jet_bmatched_Flt77)[k]; //b-matched templ
+      if(config.tmpType == 11) tmp_ind = (*p->jet_bmatched_Flt85)[k]; //b-matched templ
+
       pt = (*p->jet_pt)[k];
       eta = (*p->jet_eta)[k];
       

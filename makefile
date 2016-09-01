@@ -39,6 +39,7 @@ SRStudies : SRStudies.o miniTree.o
 kinematicMaker : kinematicMaker.o miniTree.o
 kinematicMaker_exclTempl : kinematicMaker_exclTempl.o miniTree.o
 kinematicMaker_softJetTempl : kinematicMaker_softJetTempl.o miniTree.o 
+kinematicMaker_subjetTempl : kinematicMaker_subjetTempl.o miniTree.o
 
 dresser : dresser.o miniTree.o
 dresser_exclTempl : dresser_exclTempl.o miniTree.o
@@ -69,7 +70,7 @@ eventSelection : eventSelection.o nominalMC.o nominalData.o
 ############################################################################
 .PHONY: clean cln
 
-kin : kinematicMaker kinematicMaker_exclTempl kinematicMaker_softJetTempl
+kin : kinematicMaker kinematicMaker_exclTempl kinematicMaker_softJetTempl kinematicMaker_subjetTempl
 dress : dresser dresser_exclTempl dresser_softJetTempl
 select : eventSelection getWeights
 

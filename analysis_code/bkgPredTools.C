@@ -1606,7 +1606,8 @@ void templateStats(int btag, int softJet = 0){
   char hist_locations[200];
   char f_kinematic[300];
   char templ[100];
-  double etaBins[5] = {0,0.5,1.0,1.5,2};
+  //  double etaBins[5] = {0,0.5,1.0,1.5,2};
+  double subjetBins[5] = {0.5,1.5,2.5,3.5,4.5};
   //double ptBins[9] = {0.2,0.244,0.293,0.364,0.445,0.52,0.6,0.733,0.896};
 
   char* region = Form("CR_b%i",btag);
@@ -1615,37 +1616,40 @@ void templateStats(int btag, int softJet = 0){
   sprintf(f_kinematic,"%s/kinematic_hists/%s/main_kinematic_%s.root",hist_locations, source.c_str(), source.c_str());
 
   TFile *f_kin = TFile::Open(f_kinematic);
+  cout<<"Kinematic file opened: "<<f_kinematic<<endl;
 
-  sprintf(templ,"templGrid_3j_b%i",btag);
+  sprintf(templ,"templGrid_b%i",btag);
   if(softJet == 1) sprintf(templ,"templGrid_4j_b%i",btag);
   if(softJet == 2) sprintf(templ,"templGrid_5j_b%i",btag);
   TH2F* h_grid = (TH2F*)f_kin->Get(templ);
-  
+  cout<<"Template grid opened "<<templ<<endl;
   const int nPtBins = (const int)h_grid->GetNbinsX();
+  cout<<"nPtBins = "<<nPtBins<<endl;
   double lowEdge;
   for(int j =1; j <= nPtBins;j++){
     lowEdge = h_grid->GetXaxis()->GetBinLowEdge(j)*1e3;
     h_grid->GetXaxis()->SetBinLabel(j, Form("> %i",(int)lowEdge));
   }
-
-  for(int i = 1; i < 5; i++) h_grid->GetYaxis()->SetBinLabel(i,Form("%3.1f - %3.1f",etaBins[i-1],etaBins[i]));
-  h_grid->GetYaxis()->SetTitle("|#eta|");
+  cout<<"X-axis labels set"<<endl;
+  //  for(int i = 1; i < 5; i++) h_grid->GetYaxis()->SetBinLabel(i,i);
+//Form("%3.1f - %3.1f",etaBins[i-1],etaBins[i]));
+  h_grid->GetYaxis()->SetTitle("n_{subjet}");
   h_grid->GetXaxis()->SetTitle("Jet p_{T} [GeV]");
-
+  cout<<"axis titles set"<<endl;
   
   TCanvas *c_1 = new TCanvas("c_1","c_1");
-  c_1->SetGridy();
+  //  c_1->SetGridy();
   
   gStyle->SetPaintTextFormat("3.0f");
   h_grid->SetMarkerSize(1.5);
   
   h_grid->Draw("text60");
-
+  cout<<"Grid drawn"<<endl;
   TLine l;
   l.SetLineStyle(2);
   for(int i = 2; i < nPtBins+1; i++){
     lowEdge = h_grid->GetXaxis()->GetBinLowEdge(i);
-    l.DrawLine(lowEdge,0,lowEdge,2);
+    //l.DrawLine(lowEdge,0,lowEdge,2);
   }
   
   h_grid->GetXaxis()->LabelsOption("d");
@@ -1653,7 +1657,7 @@ void templateStats(int btag, int softJet = 0){
   //h_grid->GetXaxis()->SetLabelSize(0.03);
   h_grid->GetXaxis()->SetTitleOffset(1.3);
   h_grid->GetYaxis()->SetTitleSize(0.04);
-  h_grid->GetYaxis()->SetTitleOffset(0.8);
+  h_grid->GetYaxis()->SetTitleOffset(1.2);
 
   ATLASLabel(0.15,0.90,"Internal",0.04,0.10);
 
@@ -1704,7 +1708,7 @@ void drawTemplates(int ptBin, int btag){
   TH1F* h_temp[4];
 
   for(int i = 0; i < 4; i ++){
-    sprintf(templname,"templ_b%i_etaBin%i_ptBin%i",btag,i+1,ptBin);
+    sprintf(templname,"templ_b%i_subjetBin%i_ptBin%i",btag,i+1,ptBin);
     h_temp[i] = (TH1F*)f_kin->Get(templname);
     h_temp[i]->Scale(1/h_temp[i]->Integral());
     h_temp[i]->SetLineColor(i+1);
@@ -1746,7 +1750,7 @@ void drawTemplates(int ptBin, int btag){
   h_ratio[0]->GetXaxis()->SetRangeUser(-7,0);
   h_ratio[0]->GetYaxis()->SetRangeUser(0,2.0);
   h_ratio[0]->GetXaxis()->SetTitle("log(m/pt)");
-  h_ratio[0]->GetYaxis()->SetTitle(". / etaBin 1");
+  h_ratio[0]->GetYaxis()->SetTitle(". / n_{subjet} = 1");
   h_ratio[0]->GetYaxis()->SetTitleSize(18);
   h_ratio[0]->GetYaxis()->SetTitleFont(43);
   h_ratio[0]->GetYaxis()->SetTitleOffset(1.);
@@ -1770,7 +1774,9 @@ void drawTemplates(int ptBin, int btag){
   TLegend *leg_1 = new TLegend(0.15,0.7,0.35,0.9);
 
   for(int i = 0; i < 4; i++){
-    leg_1->AddEntry(h_temp[i],Form("%3.1f < |#eta| < %3.1f",i*0.5,(i+1)*0.5),"F");  
+    //    leg_1->AddEntry(h_temp[i],Form("%3.1f < |#eta| < %3.1f",i*0.5,(i+1)*0.5),"F");  
+    leg_1->AddEntry(h_temp[i],Form("n_{subjet} = %i",i+1),"F");  
+
   }
   
   leg_1->SetLineColor(0);
@@ -1828,13 +1834,13 @@ void drawTemplatesBin(int etaBin, int ptBin){
   TH2F *h_grid = (TH2F*)f_kin->Get("templGrid_b0");
   TH1F* h_temp[2];
 
-  sprintf(templname,"templ_b0_etaBin%i_ptBin%i",etaBin,ptBin);
+  sprintf(templname,"templ_b0_subjetBin%i_ptBin%i",etaBin,ptBin);
   h_temp[0] = (TH1F*)f_kin->Get(templname);
   h_temp[0]->Scale(1/h_temp[0]->Integral());
   h_temp[0]->SetLineColor(1);
   h_temp[0]->SetMarkerSize(0.001);
 
-  sprintf(templname,"templ_b1_etaBin%i_ptBin%i",etaBin,ptBin);
+  sprintf(templname,"templ_b1_subjetBin%i_ptBin%i",etaBin,ptBin);
   h_temp[1] = (TH1F*)f_kin->Get(templname);
   h_temp[1]->Scale(1/h_temp[1]->Integral());
   h_temp[1]->SetLineColor(2);
@@ -1917,13 +1923,14 @@ void drawTemplatesBin(int etaBin, int ptBin){
     }
   cap.DrawLatex(0.12,0.6,jet_multi);
 
-  sprintf(jet_multi,"%3.1f < |#eta| < %3.1f",(etaBin-1)*0.5,etaBin*0.5);
+  //  sprintf(jet_multi,"%3.1f < |#eta| < %3.1f",(etaBin-1)*0.5,etaBin*0.5);
+  sprintf(jet_multi,"n_{subjet} = %i",etaBin);
   cap.DrawLatex(0.18,0.5,jet_multi);
 
   char save_name[300]; 
-  sprintf(save_name,"%s/templates/templ_%s_etaBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
+  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
   c_1->SaveAs(save_name);
-  sprintf(save_name,"%s/templates/templ_%s_etaBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
+  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
   c_1->SaveAs(save_name);
   
 
@@ -2558,7 +2565,7 @@ int bkgPredTools(){
   SR_cut = 0.6;
   sprintf(SR_cut_str,"SR_cut_%igev",(int)(SR_cut*1e3));
 
-  sprintf(dateStr,"08_23");
+  sprintf(dateStr,"09_02");
   //lumi = 13.277; //DS2
   //lumi = 4.589; //PostD2
   lumi = 14.784; //E3 --> ICHEP
@@ -2568,7 +2575,7 @@ int bkgPredTools(){
   mc = new bkgPrediction("pythia",SR_cut,true);
   mc->setLumi(lumi);
 
-  source = "dataE3_Flt70bMatched";
+  source = "ICHEP_subjetTemplbMatchFix70";
   //sprintf(plot_locations,"plots");
   sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
   gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
@@ -2577,7 +2584,7 @@ int bkgPredTools(){
   p->setLumi(lumi);
   p->setPEs(100);
   //scanTableText("SR");
-  confNote();
+  //confNote();
 
   //plotAltPredictions();
   //compareYield(0.6,13,"SR",5,1,1);

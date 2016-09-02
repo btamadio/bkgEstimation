@@ -7,7 +7,7 @@ echo ${dir}
 #rm *.sh.e*
 #rm *.sh.o*
 
-rm -rf ${dir}/samples/data2015
+#rm -rf ${dir}/samples/data2015
 rm -rf ${dir}/samples/data2016
 #rm -rf ${dir}/samples/pythia
 #rm -rf ${dir}/samples/sherpa
@@ -15,9 +15,12 @@ rm -rf ${dir}/samples/data2016
 #rm -rf ${dir}/samples/rpv10_mg1600_mx650
 #rm -rf ${dir}/samples/rpv6_mg1200
 
-source submit_selection.sh /project/projectdirs/atlas/btamadio/RPV_SUSY/NTUP/fileList.data15_13TeV.physics_Main.2016_06_14_v1.txt data2015 ${dir}
+#source submit_selection.sh /project/projectdirs/atlas/btamadio/RPV_SUSY/NTUP/fileList.data15_13TeV.physics_Main.2016_06_14_v1.txt data2015 ${dir}
 
-source submit_selection.sh /project/projectdirs/atlas/btamadio/RPV_SUSY/NTUP/fileList.data16_13TeV.physics_Main.2016_06_14_v1.txt data2016 ${dir}
+#source submit_selection.sh /project/projectdirs/atlas/btamadio/RPV_SUSY/NTUP/fileList.data16_13TeV.physics_Main.2016_06_14_v1.txt data2016 ${dir}
+
+source submit_selection.sh ${dir}/files/fileList.data16_13TeV.physics_Main.2016_07_27_v2.txt data2016 ${dir} #ICHEP
+
 
 #source submit_selection.sh ${dir}/files/fileList.data15_13TeV.physics_Main.2016_06_14_v1.txt data2015 ${dir}
 #source submit_selection.sh ${dir}/files/fileList.data16_13TeV.physics_Main.2016_07_06_v1.txt data2016 ${dir} #D2

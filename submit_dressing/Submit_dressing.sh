@@ -26,10 +26,12 @@ rm *.sh.o*
 #rm -rf ${dir}/dressed_hists/ICHEP_Fix77bMatched
 #rm -rf ${dir}/dressed_hists/ICHEP_Fix85bMatched
 
-rm -rf ${dir}/dressed_hists/ICHEP_Flt60bMatched
-rm -rf ${dir}/dressed_hists/ICHEP_Flt70bMatched
-rm -rf ${dir}/dressed_hists/ICHEP_Flt77bMatched
-rm -rf ${dir}/dressed_hists/ICHEP_Flt85bMatched
+#rm -rf ${dir}/dressed_hists/ICHEP_Flt60bMatched
+#rm -rf ${dir}/dressed_hists/ICHEP_Flt70bMatched
+#rm -rf ${dir}/dressed_hists/ICHEP_Flt77bMatched
+#rm -rf ${dir}/dressed_hists/ICHEP_Flt85bMatched
+
+rm -rf ${dir}/dressed_hists/ICHEP_subjetTemplMatchedFix70
 
 
 #rm -rf ${dir}/dressed_hists/dataE3_10_inv_fb
@@ -59,10 +61,12 @@ rm -rf ${dir}/dressed_hists/ICHEP_Flt85bMatched
 #source submit_analysis.sh dresser proc_ICHEP.txt bMatchFix77 ICHEP_Fix77bMatched ${dir} ICHEP_Fix77bMatched
 #source submit_analysis.sh dresser proc_ICHEP.txt bMatchFix85 ICHEP_Fix85bMatched ${dir} ICHEP_Fix85bMatched
 
-source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt60 ICHEP_Flt60bMatched ${dir} ICHEP_Flt60bMatched
-source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt70 ICHEP_Flt70bMatched ${dir} ICHEP_Flt70bMatched
-source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt77 ICHEP_Flt77bMatched ${dir} ICHEP_Flt77bMatched
-source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt85 ICHEP_Flt85bMatched ${dir} ICHEP_Flt85bMatched
+#source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt60 ICHEP_Flt60bMatched ${dir} ICHEP_Flt60bMatched
+#source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt70 ICHEP_Flt70bMatched ${dir} ICHEP_Flt70bMatched
+#source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt77 ICHEP_Flt77bMatched ${dir} ICHEP_Flt77bMatched
+#source submit_analysis.sh dresser proc_ICHEP.txt bMatchFlt85 ICHEP_Flt85bMatched ${dir} ICHEP_Flt85bMatched
+
+source submit_analysis.sh dresser_subjetTempl proc_ICHEP44.txt subjetTemplbMatchFix70 ICHEP_subjetTemplbMatchFix70 ${dir} ICHEP_subjetTemplbMatchFix70
 
 
 #source submit_analysis.sh dresser_softJetTempl proc_data_5_inv_fb.txt softJet data_5_inv_fb ${dir} data_5_inv_fb

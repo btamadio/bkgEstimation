@@ -44,6 +44,8 @@ kinematicMaker_subjetTempl : kinematicMaker_subjetTempl.o miniTree.o
 dresser : dresser.o miniTree.o
 dresser_exclTempl : dresser_exclTempl.o miniTree.o
 dresser_softJetTempl : dresser_softJetTempl.o miniTree.o
+dresser_subjetTempl : dresser_subjetTempl.o miniTree.o
+
 eventSelection : eventSelection.o nominalMC.o nominalData.o
 
 ############################################################################
@@ -71,7 +73,7 @@ eventSelection : eventSelection.o nominalMC.o nominalData.o
 .PHONY: clean cln
 
 kin : kinematicMaker kinematicMaker_exclTempl kinematicMaker_softJetTempl kinematicMaker_subjetTempl
-dress : dresser dresser_exclTempl dresser_softJetTempl
+dress : dresser dresser_exclTempl dresser_softJetTempl dresser_subjetTempl
 select : eventSelection getWeights
 
 all : kin dress select

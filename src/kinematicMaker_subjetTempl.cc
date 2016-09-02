@@ -1,4 +1,4 @@
-#include "kinematicMaker.hh"
+#include "kinematicMaker_subjetTempl.hh"
 int main (int argc, char **argv){
 
   if (argc < 2)
@@ -32,26 +32,26 @@ int main (int argc, char **argv){
   f->cd();
   nameHistos();
   
-  const int nEtaBins = (const int)(config.etaBins.size()-1);
-  double *etaBins = &(config.etaBins[0]);
+  const int nSubjetBins = (const int)(config.subjetBins.size()-1);
+  double *subjetBins = &(config.subjetBins[0]);
   const int nPtBins = (const int)(config.ptBins.size()-1);
   double *ptBins = &(config.ptBins[0]);
 
   double logPtLow = log(ptBins[0]/0.05);
   double logPtHigh = log(ptBins[nPtBins]/0.05);
 
-  TH1F* h_mpt[3][nEtaBins][nPtBins];
+  TH1F* h_mpt[3][nSubjetBins][nPtBins];
   TH2F* h_templGrid[3];
   TH2F* h_templGrid_log[3];
 
   for(int k = 0; k < 3; k++){
     hname = Form("templGrid_b%i",b_tag[k]);
-    h_templGrid[k] = new TH2F(hname,hname,nPtBins,ptBins,nEtaBins,etaBins);
+    h_templGrid[k] = new TH2F(hname,hname,nPtBins,ptBins,nSubjetBins,subjetBins);
     hname = Form("templGrid_log_b%i",b_tag[k]);
-    h_templGrid_log[k] = new TH2F(hname,hname,nPtBins,logPtLow,logPtHigh,nEtaBins,etaBins[0],etaBins[nEtaBins]);
-    for(int i = 0; i <nEtaBins; i++){
+    h_templGrid_log[k] = new TH2F(hname,hname,nPtBins,logPtLow,logPtHigh,nSubjetBins,subjetBins[0],subjetBins[nSubjetBins]);
+    for(int i = 0; i <nSubjetBins; i++){
       for(int j = 0; j < nPtBins; j++){
-        hname = Form("templ_b%i_etaBin%i_ptBin%i",b_tag[k],i+1,j+1);
+        hname = Form("templ_b%i_subjetBin%i_ptBin%i",b_tag[k],i+1,j+1);
         h_mpt[k][i][j] = new TH1F(hname,hname,50,-7,0);
         h_mpt[k][i][j]->Sumw2();
       }
@@ -148,7 +148,7 @@ int main (int argc, char **argv){
     }
 
     //Fill templates
-    double pt,eta,mass,dummyPt,dummyEta;
+    double pt,mass,dummyPt,NTrimSubjets,dummyNTrimSubjets;
     int bin,i,j,l;
     if(isCR){
     for(int k = 0; k < min(njet,4); k++){
@@ -164,12 +164,11 @@ int main (int argc, char **argv){
 
         pt = (*p->jet_pt)[k];
         dummyPt = min(pt,config.ptBins[nPtBins]-0.001);
-        eta = (*p->jet_eta)[k];
-        dummyEta = min(fabs(eta),config.etaBins[nEtaBins]-0.01);
         mass = (*p->jet_m)[k];
-        
-        h_templGrid_log[b_tag]->Fill(log(dummyPt/0.05),dummyEta,wt);
-        bin = h_templGrid[b_tag]->Fill(dummyPt,dummyEta,wt);
+        NTrimSubjets = (*p->jet_NTrimSubjets)[k];
+	dummyNTrimSubjets = min(NTrimSubjets,config.subjetBins[nSubjetBins]-0.1);
+        h_templGrid_log[b_tag]->Fill(log(dummyPt/0.05),dummyNTrimSubjets,wt);
+        bin = h_templGrid[b_tag]->Fill(dummyPt,dummyNTrimSubjets,wt);
         h_templGrid[b_tag]->GetBinXYZ(bin,j,i,l);
         h_mpt[b_tag][i-1][j-1]->Fill(log(mass/pt),wt);
         h_mpt[2][i-1][j-1]->Fill(log(mass/pt),wt);

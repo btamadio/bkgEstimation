@@ -49,7 +49,7 @@ void get_event(int i) {
 }
 
 struct Config {
-    vector<double> etaBins;
+    vector<double> subjetBins;
     vector<double> ptBins;
     int CRdef;
     bool useVR;
@@ -61,13 +61,13 @@ void loadConfig(Config& config, char* configFile) {
     string s;
     while (getline(fin, line)) {
         istringstream iss(line.substr(line.find(":") + 1));
-        if (line.find("etaBins") != string::npos){
+        if (line.find("subjetBins") != string::npos){
           getline(iss,s,'{');
           getline(iss,s,'}');
           istringstream iss2(s);
           while(iss2){
             if(!getline(iss2,s,',')) break;
-            config.etaBins.push_back(stod(s));
+            config.subjetBins.push_back(stod(s));
           }
         }
         else if (line.find("ptBins ") != string::npos){

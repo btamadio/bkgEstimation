@@ -1,6 +1,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 
 double GetMedian(TH1F* h){
   const int nq = 1; double xq[nq] = {0.5}; double yq[nq];
@@ -176,7 +177,10 @@ void bkgPrediction::runPredictionAndHist(bool incl, int njets, string reg,int bt
   for(int PE = 1; PE <= PE_number; PE++){
     sprintf(f_dressed,"%s/dressed_hists/%s/main_dressed_%s_%d.root",hist_locations, source.c_str(), source.c_str(), PE);
     TFile *f_dress = TFile::Open(f_dressed);
-
+    if(!f_dress){
+      cout<<"Could not find file "<<f_dressed<<endl;
+      exit(1);
+    }      
     temp_MJs[PE] = (TH1F*)f_dress->Get(dress);
     temp_MJs_up[PE] = (TH1F*)f_dress->Get(dress_up);
     temp_MJs_down[PE] = (TH1F*)f_dress->Get(dress_down);

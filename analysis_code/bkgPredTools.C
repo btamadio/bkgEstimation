@@ -53,7 +53,7 @@ void compare_MJs(string reg,int njets, int btag,bool incl){
   for(int i = 0; i < N_MJ_bins; i++) MJ_width[i] = MJ_bins[i+1]-MJ_bins[i];
   string excStr = "n";
   if(incl) excStr = "m";
-
+  
   bool blindPlot = (blinded && reg == "SR" && njets >= 4);
   string source = p->getName();
   char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
@@ -73,17 +73,17 @@ void compare_MJs(string reg,int njets, int btag,bool incl){
 
   //Get mc non closure hist
   if(!isMC){
-  mc->getHistMJ(incl,njets,reg,btag);
-  TH1F *mcHist = mc->getNonClosure();
+    mc->getHistMJ(incl,njets,reg,btag);
+    TH1F *mcHist = mc->getNonClosure();
 
-  for(int bin =1; bin <= N_MJ_bins; bin++){
-    double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
-    double data_err = h_dress_nom->GetBinError(bin);
-    double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+    for(int bin =1; bin <= N_MJ_bins; bin++){
+      double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+      double data_err = h_dress_nom->GetBinError(bin);
+      double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
 
-    h_dress_nom->SetBinError(bin,err);
+      h_dress_nom->SetBinError(bin,err);
+    }
   }
-}
 
   //Scale bin contents by bin width
   /*wait but what are the bins? Can put them here by hand by thats awkward...
@@ -153,6 +153,18 @@ void compare_MJs(string reg,int njets, int btag,bool incl){
   h_dress_nom->Draw("E2same");
   h_dress_stat->Draw("histsame");
   h_kin_var->Draw("Esame");
+
+  float chi2 = 0;
+  float k = 0;
+  for(int i = 1; i <= h_kin_var->GetNbinsX(); i++){
+    if(reg == "VR" or (njets==4 and h_kin_var->GetBinLowEdge(i+1) <= 0.8) or (njets==5 and h_kin_var->GetBinLowEdge(i+1) <= 0.6)){
+      chi2+=((h_dress_stat->GetBinContent(i) - h_kin_var->GetBinContent(i))*(h_dress_stat->GetBinContent(i) - h_kin_var->GetBinContent(i)))/(h_dress_nom->GetBinError(i)*h_dress_nom->GetBinError(i));
+      cout<<h_kin_var->GetBinLowEdge(i+1)<<endl;
+      k++;
+    }
+  }
+  chi2/=k;
+  cout<<"chi2/dof = "<<chi2<<endl;
 
   c_1->cd(2);
   ratio_nom->GetXaxis()->SetRangeUser(0,2.0);
@@ -2575,7 +2587,8 @@ int bkgPredTools(){
   mc = new bkgPrediction("pythia",SR_cut,true);
   mc->setLumi(lumi);
 
-  source = "ICHEP_subjetTemplbMatchFix70";
+  //  source = "ICHEP_subjetTemplbMatchFix70";
+  source = "dataE3_bMatched";
   //sprintf(plot_locations,"plots");
   sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
   gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));

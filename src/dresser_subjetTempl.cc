@@ -12,11 +12,11 @@ int main (int argc, char **argv){
   TString *path = new TString[ind];
   TChain *chain = new TChain("miniTree");
 
-       for ( int j = 0; j < argc-2; j++)
-       {
-         path[j] = (argv[j+2]); 
-         chain->Add(path[j]);
-       }
+  for ( int j = 0; j < argc-2; j++)
+    {
+      path[j] = (argv[j+2]); 
+      chain->Add(path[j]);
+    }
 
   p = new miniTree(chain);
   Config config;
@@ -33,7 +33,7 @@ int main (int argc, char **argv){
   nameHistos();
 
   get_event(0);
-  bool isMC = p->isMC;
+  //  bool isMC = p->isMC;
   //Assumes that kinematic and training samples are either both MC or both data. 
 
   int PE_loop = config.PE;
@@ -52,8 +52,9 @@ int main (int argc, char **argv){
       for(int j = 0; j < nPtBins; j++){
         hname = Form("templ_b%i_subjetBin%i_ptBin%i",b_tag[k],i+1,j+1);
         h_mpt[k][i][j]= (TH1F*)file->Get(hname);
-        if(isMC) fluctuateMCTemp(PE_loop,h_mpt[k][i][j]);
-        if(!isMC) fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
+	//if(isMC) fluctuateMCTemp(PE_loop,h_mpt[k][i][j]);
+        //if(!isMC) fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
+	fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
       }
     }
   }
@@ -90,7 +91,7 @@ int main (int argc, char **argv){
     if(config.tmpType==11){ btags = p->nbjet_Flt85; }
 
     int b_tag = (int)((bool)btags);
-   double dEta_cut = 1.4;
+    double dEta_cut = 1.4;
 
     bool isVR = (p->dEta > dEta_cut);
 
@@ -123,7 +124,7 @@ int main (int argc, char **argv){
       NTrimSubjets = (*p->jet_NTrimSubjets)[k];
       
       dummyPt = min(pt,templGrid->GetXaxis()->GetXmax()-0.001);
-      dummyNTrimSubjets = min(NTrimSubjets,4.0);
+      dummyNTrimSubjets = min(NTrimSubjets,templGrid->GetYaxis()->GetBinCenter(templGrid->GetNbinsY()));
       bin = templGrid->Fill(dummyPt,dummyNTrimSubjets,0);
       templGrid->GetBinXYZ(bin,ptBin,subjetBin,zBin);
       
@@ -162,105 +163,105 @@ int main (int argc, char **argv){
       mass_shiftDown[k] = dressed_mass;
     }
 
-
     //Fill MJ distributions
     dummyMJ = min(MJ,1.99);
     dummyMJ_up = min(MJ_shiftUp,1.99);
     dummyMJ_down = min(MJ_shiftDown,1.99);
-      if(njet < 5){
-        h_MJ[njet-3][isVR][2]->Fill(dummyMJ,wt*nom_wt);
-        h_MJ_shiftUp[njet-3][isVR][2]->Fill(dummyMJ_up,wt*up_wt);
-        h_MJ_shiftDown[njet-3][isVR][2]->Fill(dummyMJ_down,wt*down_wt);
+    //    if(p->MJ < 0.6){
+    if(njet < 5){
+      h_MJ[njet-3][isVR][2]->Fill(dummyMJ,wt*nom_wt);
+      h_MJ_shiftUp[njet-3][isVR][2]->Fill(dummyMJ_up,wt*up_wt);
+      h_MJ_shiftDown[njet-3][isVR][2]->Fill(dummyMJ_down,wt*down_wt);
 
-        h_MJ[njet-3][isVR][b_tag]->Fill(dummyMJ,wt*nom_wt);
-        h_MJ_shiftUp[njet-3][isVR][b_tag]->Fill(dummyMJ_up,wt*up_wt);
-        h_MJ_shiftDown[njet-3][isVR][b_tag]->Fill(dummyMJ_down,wt*down_wt);
-      }
-      for(int jets = 4; jets < 6; jets++){
-        if(njet >= jets){
-          h_MJ[jets-2][isVR][2]->Fill(dummyMJ,wt*nom_wt);
-          h_MJ_shiftUp[jets-2][isVR][2]->Fill(dummyMJ_up,wt*up_wt);
-          h_MJ_shiftDown[jets-2][isVR][2]->Fill(dummyMJ_down,wt*down_wt);
+      h_MJ[njet-3][isVR][b_tag]->Fill(dummyMJ,wt*nom_wt);
+      h_MJ_shiftUp[njet-3][isVR][b_tag]->Fill(dummyMJ_up,wt*up_wt);
+      h_MJ_shiftDown[njet-3][isVR][b_tag]->Fill(dummyMJ_down,wt*down_wt);
+    }
+    for(int jets = 4; jets < 6; jets++){
+      if(njet >= jets){
+	h_MJ[jets-2][isVR][2]->Fill(dummyMJ,wt*nom_wt);
+	h_MJ_shiftUp[jets-2][isVR][2]->Fill(dummyMJ_up,wt*up_wt);
+	h_MJ_shiftDown[jets-2][isVR][2]->Fill(dummyMJ_down,wt*down_wt);
 
-          h_MJ[jets-2][isVR][b_tag]->Fill(dummyMJ,wt*nom_wt);
-          h_MJ_shiftUp[jets-2][isVR][b_tag]->Fill(dummyMJ_up,wt*up_wt);
-          h_MJ_shiftDown[jets-2][isVR][b_tag]->Fill(dummyMJ_down,wt*down_wt);
-        }      
-      }
+	h_MJ[jets-2][isVR][b_tag]->Fill(dummyMJ,wt*nom_wt);
+	h_MJ_shiftUp[jets-2][isVR][b_tag]->Fill(dummyMJ_up,wt*up_wt);
+	h_MJ_shiftDown[jets-2][isVR][b_tag]->Fill(dummyMJ_down,wt*down_wt);
+      }      
+    }
       
-    
     //Fill Mass Distributions
     for(int k = 0; k < min(4,njet); k++){
       dummyMass = min(mass[k],1.99);
       dummyMass_up = min(mass_shiftUp[k],1.99);
       dummyMass_down = min(mass_shiftDown[k],1.99);
       if(njet < 5){
-        h_mass[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
-        h_mass_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-        h_mass_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	h_mass[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	h_mass_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	h_mass_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-        h_mass[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-        h_mass_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-        h_mass_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	h_mass[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	h_mass_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	h_mass_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
 
-        if(fabs((*p->jet_eta)[k]) < 1.0){
-          h_mass_central[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
-          h_mass_central_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_central_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	if(fabs((*p->jet_eta)[k]) < 1.0){
+	  h_mass_central[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_central_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_central_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-          h_mass_central[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-          h_mass_central_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_central_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
-        }
-        else{
-          h_mass_forward[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
-          h_mass_forward_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_forward_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	  h_mass_central[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_central_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_central_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	}
+	else{
+	  h_mass_forward[k][njet-3][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_forward_shiftUp[k][njet-3][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_forward_shiftDown[k][njet-3][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-          h_mass_forward[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-          h_mass_forward_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_forward_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
-        }
+	  h_mass_forward[k][njet-3][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_forward_shiftUp[k][njet-3][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_forward_shiftDown[k][njet-3][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	}
       }
       for(int jets = 4; jets < 6; jets++){
-        if(njet >= jets){
-          h_mass[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
-          h_mass_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	if(njet >= jets){
+	  h_mass[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-          h_mass[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-          h_mass_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	  h_mass[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	  h_mass_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	  h_mass_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
 
-          if(fabs((*p->jet_eta)[k]) < 1.0){
-          h_mass_central[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
-          h_mass_central_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_central_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	  if(fabs((*p->jet_eta)[k]) < 1.0){
+	    h_mass_central[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	    h_mass_central_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	    h_mass_central_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-          h_mass_central[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-          h_mass_central_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_central_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
-        }
-        else{
-          h_mass_forward[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
-          h_mass_forward_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_forward_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
+	    h_mass_central[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	    h_mass_central_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	    h_mass_central_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	  }
+	  else{
+	    h_mass_forward[k][jets-2][isVR][2]->Fill(dummyMass,wt*nom_wt);
+	    h_mass_forward_shiftUp[k][jets-2][isVR][2]->Fill(dummyMass_up,wt*up_wt);
+	    h_mass_forward_shiftDown[k][jets-2][isVR][2]->Fill(dummyMass_down,wt*down_wt);
 
-          h_mass_forward[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
-          h_mass_forward_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
-          h_mass_forward_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
-        }
-        }      
+	    h_mass_forward[k][jets-2][isVR][b_tag]->Fill(dummyMass,wt*nom_wt);
+	    h_mass_forward_shiftUp[k][jets-2][isVR][b_tag]->Fill(dummyMass_up,wt*up_wt);
+	    h_mass_forward_shiftDown[k][jets-2][isVR][b_tag]->Fill(dummyMass_down,wt*down_wt);
+	  }
+	}      
       }
     
+    }
+    //    }
   }
-}
 
-f->Write();
-f->Close();
+  f->Write();
+  f->Close();
 
 return 0;
-
+ 
 }
 
 

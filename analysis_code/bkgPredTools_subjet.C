@@ -1509,8 +1509,7 @@ void templateStatsLog(int btag,bool temp3j=false,int split=0){
   char hist_locations[200];
   char f_kinematic[300];
   char templ[100];
-  double etaBins[9] = {0,0.25,0.5,0.75,1.0,1.25,1.5,1.75,2};
-  //double etaBins[5] = {0,0.5,1.0,1.5,2};
+    double subjetBins[5] = {0.5,1.5,2.5,3.5,4.5};
 
   char* region = Form("CR_b%i",btag);
   cout << region << " Templates" << endl;
@@ -1536,7 +1535,7 @@ void templateStatsLog(int btag,bool temp3j=false,int split=0){
   }
 
 
-  for(int i = 1; i < 5; i++) h_grid_log->GetYaxis()->SetBinLabel(i,Form("%3.1f-%3.1f",etaBins[i-1],etaBins[i]));
+  //  for(int i = 1; i < 5; i++) h_grid_log->GetYaxis()->SetBinLabel(i,Form("%3.1f-%3.1f",etaBins[i-1],etaBins[i]));
   h_grid_log->GetYaxis()->SetTitle("|#eta|");
   h_grid_log->GetXaxis()->SetTitle("Jet p_{T} [GeV]");
   
@@ -1618,8 +1617,7 @@ void templateStats(int btag, int softJet = 0){
   char hist_locations[200];
   char f_kinematic[300];
   char templ[100];
-    double etaBins[5] = {0,0.5,1.0,1.5,2};
-    //double subjetBins[5] = {0.5,1.5,2.5,3.5,4.5};
+  double subjetBins[5] = {0.5,1.5,2.5,3.5,4.5};
   //double ptBins[9] = {0.2,0.244,0.293,0.364,0.445,0.52,0.6,0.733,0.896};
 
   char* region = Form("CR_b%i",btag);
@@ -1644,8 +1642,7 @@ void templateStats(int btag, int softJet = 0){
   }
   cout<<"X-axis labels set"<<endl;
   //  for(int i = 1; i < 5; i++) h_grid->GetYaxis()->SetBinLabel(i,Form("%3.1f - %3.1f",etaBins[i-1],etaBins[i]));
-  h_grid->GetYaxis()->SetTitle("|#eta|");
-//h_grid->GetYaxis()->SetTitle("n_{subjet}");
+  h_grid->GetYaxis()->SetTitle("n_{subjet}");
   h_grid->GetXaxis()->SetTitle("Jet p_{T} [GeV]");
   cout<<"axis titles set"<<endl;
   
@@ -1720,8 +1717,8 @@ void drawTemplates(int ptBin, int btag){
   TH1F* h_temp[4];
 
   for(int i = 0; i < 4; i ++){
-    //    sprintf(templname,"templ_b%i_subjetBin%i_ptBin%i",btag,i+1,ptBin);
-    sprintf(templname,"templ_b%i_etaBin%i_ptBin%i",btag,i+1,ptBin);
+    sprintf(templname,"templ_b%i_subjetBin%i_ptBin%i",btag,i+1,ptBin);
+    
     h_temp[i] = (TH1F*)f_kin->Get(templname);
     h_temp[i]->Scale(1/h_temp[i]->Integral());
     h_temp[i]->SetLineColor(i+1);
@@ -1763,8 +1760,8 @@ void drawTemplates(int ptBin, int btag){
   h_ratio[0]->GetXaxis()->SetRangeUser(-7,0);
   h_ratio[0]->GetYaxis()->SetRangeUser(0,2.0);
   h_ratio[0]->GetXaxis()->SetTitle("log(m/pt)");
-  //  h_ratio[0]->GetYaxis()->SetTitle(". / n_{subjet} = 1");
-  h_ratio[0]->GetYaxis()->SetTitle(". / etaBin 1");
+  h_ratio[0]->GetYaxis()->SetTitle(". / n_{subjet} = 1");
+
   h_ratio[0]->GetYaxis()->SetTitleSize(18);
   h_ratio[0]->GetYaxis()->SetTitleFont(43);
   h_ratio[0]->GetYaxis()->SetTitleOffset(1.);
@@ -1788,8 +1785,7 @@ void drawTemplates(int ptBin, int btag){
   TLegend *leg_1 = new TLegend(0.15,0.7,0.35,0.9);
 
   for(int i = 0; i < 4; i++){
-    leg_1->AddEntry(h_temp[i],Form("%3.1f < |#eta| < %3.1f",i*0.5,(i+1)*0.5),"F");  
-    //leg_1->AddEntry(h_temp[i],Form("n_{subjet} = %i",i+1),"F");  
+    leg_1->AddEntry(h_temp[i],Form("n_{subjet} = %i",i+1),"F");  
 
   }
   
@@ -1848,15 +1844,13 @@ void drawTemplatesBin(int etaBin, int ptBin){
   TH2F *h_grid = (TH2F*)f_kin->Get("templGrid_b0");
   TH1F* h_temp[2];
 
-  sprintf(templname,"templ_b0_etaBin%i_ptBin%i",etaBin,ptBin);
-  //  sprintf(templname,"templ_b0_subjetBin%i_ptBin%i",etaBin,ptBin);
+  sprintf(templname,"templ_b0_subjetBin%i_ptBin%i",etaBin,ptBin);
   h_temp[0] = (TH1F*)f_kin->Get(templname);
   h_temp[0]->Scale(1/h_temp[0]->Integral());
   h_temp[0]->SetLineColor(1);
   h_temp[0]->SetMarkerSize(0.001);
 
-  sprintf(templname,"templ_b1_etaBin%i_ptBin%i",etaBin,ptBin);
-  //sprintf(templname,"templ_b1_subjetBin%i_ptBin%i",etaBin,ptBin);
+  sprintf(templname,"templ_b1_subjetBin%i_ptBin%i",etaBin,ptBin);
   h_temp[1] = (TH1F*)f_kin->Get(templname);
   h_temp[1]->Scale(1/h_temp[1]->Integral());
   h_temp[1]->SetLineColor(2);
@@ -1939,16 +1933,15 @@ void drawTemplatesBin(int etaBin, int ptBin){
     }
   cap.DrawLatex(0.12,0.6,jet_multi);
 
-    sprintf(jet_multi,"%3.1f < |#eta| < %3.1f",(etaBin-1)*0.5,etaBin*0.5);
-  //sprintf(jet_multi,"n_{subjet} = %i",etaBin);
+    sprintf(jet_multi,"n_{subjet} = %i",etaBin);
   cap.DrawLatex(0.18,0.5,jet_multi);
 
   char save_name[300]; 
-  //  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
-  sprintf(save_name,"%s/templates/templ_%s_etaBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
+  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
+  
   c_1->SaveAs(save_name);
-  //  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
-  sprintf(save_name,"%s/templates/templ_%s_etaBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
+  sprintf(save_name,"%s/templates/templ_%s_subjetBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
+  
   c_1->SaveAs(save_name);
   
 
@@ -2580,13 +2573,12 @@ int bkgPredTools(){
   sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
 
   SR_cut = 0.8;
-  //string source = "pythia_etaTemplbMatchFix70_nsubjetCut";
-  //string source = "SignalInjectionMC_etaTempl_nsubjetCut";
-  string source = "SignalInjectionMC10_etaTempl_nsubjetCut";
-  
+
+  string source = "SignalInjectionMC10_2subjetBins";
+
   sprintf(SR_cut_str,"SR_cut_%igev",(int)(SR_cut*1e3));
 
-  sprintf(dateStr,"09_15");
+  sprintf(dateStr,"09_16");
   //lumi = 13.277; //DS2
   //lumi = 4.589; //PostD2
   lumi = 14.784; //E3 --> ICHEP

@@ -282,6 +282,7 @@ int main (int argc, char **argv)
 		      if((*p->fatjet_pt)[l] > 100 && (*p->fatjet_pt)[l] < 200 && fabs((*p->fatjet_eta)[l]) < 2.0 ) NsoftJet++;
 		      if( fabs((*p->fatjet_eta)[l]) > 2.0 ) continue ;
 			  if( (*p->fatjet_pt)[l] < 200 ) continue ;
+			  //			  if( (*p->fatjet_NTrimSubjets)[l] < 2) continue;
 			  TLorentzVector thisfatjet ;
 			  thisfatjet.SetPtEtaPhiM(  (*p->fatjet_pt)[l] ,  (*p->fatjet_eta)[l],  (*p->fatjet_phi)[l],  (*p->fatjet_m)[l] );
 			  if( thisfatjet.M()/thisfatjet.Pt() > 1.0) continue;

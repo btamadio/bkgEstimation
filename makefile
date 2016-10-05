@@ -37,16 +37,19 @@ getWeights : getWeights.o
 SRStudies : SRStudies.o miniTree.o
 
 kinematicMaker : kinematicMaker.o miniTree.o
-kinematicMaker_exclTempl : kinematicMaker_exclTempl.o miniTree.o
+#kinematicMaker_exclTempl : kinematicMaker_exclTempl.o miniTree.o
 kinematicMaker_softJetTempl : kinematicMaker_softJetTempl.o miniTree.o 
 kinematicMaker_subjetTempl : kinematicMaker_subjetTempl.o miniTree.o
+kinematicMaker_bdtTempl : kinematicMaker_bdtTempl.o miniTree.o
 
 dresser : dresser.o miniTree.o
-dresser_exclTempl : dresser_exclTempl.o miniTree.o
+#dresser_exclTempl : dresser_exclTempl.o miniTree.o
 dresser_softJetTempl : dresser_softJetTempl.o miniTree.o
 dresser_subjetTempl : dresser_subjetTempl.o miniTree.o
+dresser_bdtTempl : dresser_bdtTempl.o miniTree.o
 
-eventSelection : eventSelection.o nominalMC.o nominalData.o
+
+eventSelection : eventSelection.o nominalTree.o
 
 ############################################################################
 # General rules. The first two need not be specified due to implicit rules, 
@@ -72,8 +75,8 @@ eventSelection : eventSelection.o nominalMC.o nominalData.o
 ############################################################################
 .PHONY: clean cln
 
-kin : kinematicMaker kinematicMaker_exclTempl kinematicMaker_softJetTempl kinematicMaker_subjetTempl
-dress : dresser dresser_exclTempl dresser_softJetTempl dresser_subjetTempl
+kin : kinematicMaker kinematicMaker_softJetTempl kinematicMaker_subjetTempl kinematicMaker_bdtTempl
+dress : dresser dresser_softJetTempl dresser_subjetTempl dresser_bdtTempl
 select : eventSelection getWeights
 
 all : kin dress select

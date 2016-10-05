@@ -19,7 +19,17 @@ for key in f.GetListOfKeys():
     h.Draw('col0 text')
     h.GetXaxis().SetTickLength(0)
     h.GetYaxis().SetTickLength(0)
-    h.SetMinimum(-1.0)
-    h.SetMaximum(1.0)
-    c[-1].Print('/global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/09_22_FullMJ_FullHT_noNTrimSubjets/corrMatrix_data_'+h.GetName()+'.png')
-    os.system('chmod a+r /global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/09_22_FullMJ_FullHT_noNTrimSubjets/*')
+    if h.GetNbinsX()==17:
+        h.GetXaxis().SetBinLabel(9,'#eta_{1}')
+        h.GetXaxis().SetBinLabel(10,'#eta_{2}')
+        h.GetXaxis().SetBinLabel(11,'#eta_{3}')
+        h.GetYaxis().SetBinLabel(9,'#eta_{1}')
+        h.GetYaxis().SetBinLabel(10,'#eta_{2}')
+        h.GetYaxis().SetBinLabel(11,'#eta_{3}')
+    elif h.GetNbinsX()==22:
+        h.GetYaxis().SetBinLabel(11,'#eta_{1}')
+        h.GetYaxis().SetBinLabel(12,'#eta_{2}')
+        h.GetYaxis().SetBinLabel(13,'#eta_{3}')
+        h.GetYaxis().SetBinLabel(14,'#eta_{4}')
+    c[-1].Print('/global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/09_20_correlationMatrices_randIndex/'+h.GetName()+'.png')
+

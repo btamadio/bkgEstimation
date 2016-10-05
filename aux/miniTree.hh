@@ -23,44 +23,50 @@ public :
    TTree          *fChain;   //!pointer to the analyzed TTree or TChain
    Int_t           fCurrent; //!current Tree number in a TChain
 
-// Fixed size dimensions of array or collections stored in the TTree if any.
+  // Fixed size dimensions of array or collections stored in the TTree if any.
 
-   // Declaration of leaf types
-   Int_t           runNumber;
-   Int_t           mcChannelNumber;
-   Long64_t        eventNumber;
-   Int_t           lumiBlock;
-   Double_t        mu;
-   Bool_t          isMC;
-   Double_t        weight;
-   Int_t           njet;
-   Int_t           njet_soft;
-   Int_t           njet_ak4;
-   Int_t           nbjet_Fix60;
-   Int_t           nbjet_Fix70;
-   Int_t           nbjet_Fix77;
-   Int_t           nbjet_Fix85;
-   Int_t           nbjet_Flt60;
-   Int_t           nbjet_Flt70;
-   Int_t           nbjet_Flt77;
-   Int_t           nbjet_Flt85;
-   vector<double>  *jet_pt;
-   vector<double>  *jet_eta;
-   vector<double>  *jet_phi;
-   vector<double>  *jet_m;
-   vector<int>     *jet_bmatched_Fix60;
-   vector<int>     *jet_bmatched_Fix70;
-   vector<int>     *jet_bmatched_Fix77;
-   vector<int>     *jet_bmatched_Fix85;
-   vector<int>     *jet_bmatched_Flt60;
-   vector<int>     *jet_bmatched_Flt70;
-   vector<int>     *jet_bmatched_Flt77;
-   vector<int>     *jet_bmatched_Flt85;
-   vector<int>     *jet_NTrimSubjets; 
-   Double_t        dEta;
-   Double_t        HT_ak4;
-   Double_t        MJ;
-
+  // Declaration of leaf types
+  Int_t           runNumber;
+  Int_t           mcChannelNumber;
+  Long64_t        eventNumber;
+  Int_t           lumiBlock;
+  Double_t        mu;
+  Bool_t          isMC;
+  Double_t        weight;
+  Int_t           njet;
+  Int_t           njet_soft;
+  Int_t           njet_ak4;
+  Int_t           nbjet_Fix60;
+  Int_t           nbjet_Fix70;
+  Int_t           nbjet_Fix77;
+  Int_t           nbjet_Fix85;
+  Int_t           nbjet_Flt60;
+  Int_t           nbjet_Flt70;
+  Int_t           nbjet_Flt77;
+  Int_t           nbjet_Flt85;
+  vector<double>  *jet_pt;
+  vector<double>  *jet_eta;
+  vector<double>  *jet_phi;
+  vector<double>  *jet_m;
+  vector<int>     *jet_bmatched_Fix60;
+  vector<int>     *jet_bmatched_Fix70;
+  vector<int>     *jet_bmatched_Fix77;
+  vector<int>     *jet_bmatched_Fix85;
+  vector<int>     *jet_bmatched_Flt60;
+  vector<int>     *jet_bmatched_Flt70;
+  vector<int>     *jet_bmatched_Flt77;
+  vector<int>     *jet_bmatched_Flt85;
+  vector<int>     *jet_NTrimSubjets; 
+  Double_t        dEta;
+  Double_t        HT;
+  Double_t        MJ;
+  Double_t        MJ4;
+  Float_t        BDTG;
+  Double_t         bSF_60;
+  Double_t         bSF_70;
+  Double_t         bSF_77;
+  Double_t         bSF_85;
+  
    // List of branches
    TBranch        *b_runNumber;   //!
    TBranch        *b_mcChannelNumber;   //!
@@ -94,9 +100,13 @@ public :
    TBranch        *b_jet_bmatched_Flt77;   //!
    TBranch        *b_jet_bmatched_Flt85;   //!
    TBranch        *b_dEta;   //!
-   TBranch        *b_HT_ak4;   //!
+   TBranch        *b_HT;   //!
    TBranch        *b_MJ;   //!
-
+   TBranch        *b_BDTG; //!
+  TBranch *b_bSF_60; //!
+  TBranch *b_bSF_70; //!
+  TBranch *b_bSF_77; //!
+  TBranch *b_bSF_85; //!
    miniTree(TTree *tree=0);
    virtual ~miniTree();
    virtual Int_t    Cut(Long64_t entry);
@@ -214,8 +224,13 @@ void miniTree::Init(TTree *tree)
    fChain->SetBranchAddress("jet_bmatched_Flt85", &jet_bmatched_Flt85, &b_jet_bmatched_Flt85);
    fChain->SetBranchAddress("jet_NTrimSubjets", &jet_NTrimSubjets, &b_jet_NTrimSubjets);
    fChain->SetBranchAddress("dEta", &dEta, &b_dEta);
-   fChain->SetBranchAddress("HT_ak4", &HT_ak4, &b_HT_ak4);
+   fChain->SetBranchAddress("HT", &HT, &b_HT);
    fChain->SetBranchAddress("MJ", &MJ, &b_MJ);
+   fChain->SetBranchAddress("BDTG", &BDTG, &b_BDTG);
+   fChain->SetBranchAddress("bSF_60", &bSF_60, &b_bSF_60);
+   fChain->SetBranchAddress("bSF_70", &bSF_70, &b_bSF_70);
+   fChain->SetBranchAddress("bSF_77", &bSF_77, &b_bSF_77);
+   fChain->SetBranchAddress("bSF_85", &bSF_85, &b_bSF_85);
    Notify();
 }
 

@@ -1,0 +1,2612 @@
+#include "Style/AtlasStyle.C"
+#include "Style/AtlasLabels.C"
+#include "analysis.h"
+#include "bkgPrediction.hh"
+
+/* List of macros in this file
+compare_MJs()
+compare_MJs_wSig()
+compare_MJs_wPtRes()
+compare_Predictions()
+compare_Mass()
+compare_JetMass()
+
+templateStatsLog()
+templateStats()
+drawTemplates()
+drawTemplatesBin()
+
+predTableLine()
+limitTableLine()
+bkgTableTextLine()
+summaryTableLine()
+
+predTable()
+sigPredTable()
+limitTable()
+bkgTableText()
+summaryTable()
+scanTable()
+htmlScript()
+
+plotMJ_and_SRpredictions()
+plotMass()
+plotAltPredictions()
+confNote()
+
+bkgPredTools()
+*/
+
+//initialize prediction class
+bkgPrediction *p;
+bkgPrediction *mc;
+
+/*************************************************************************************************/
+/**************************** PLOTTING MACROS IN A REGION ****************************************/
+/*************************************************************************************************/
+
+void compare_MJs(string reg,int njets, int btag,bool incl){
+  SetAtlasStyle();
+  const int N_MJ_bins = 14;
+  double MJ_bins[N_MJ_bins+1] = {0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.40,.45,0.5,0.6,0.8,1.0,2.0};
+  double MJ_width[N_MJ_bins];
+  for(int i = 0; i < N_MJ_bins; i++) MJ_width[i] = MJ_bins[i+1]-MJ_bins[i];
+  string excStr = "n";
+  if(incl) excStr = "m";
+  
+  bool blindPlot = (blinded && reg == "SR" && njets >= 4);
+  string source = p->getName();
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+  //  p->setSR_cut(0.8);
+  p->runPredictionAndHist(incl,njets,reg,btag);
+  double obs = p->getObs();
+  double obs_error = p->getObsError();
+  double pred = p->getPred();
+  double pred_error = p->getPESpread();
+  double pred_error2 = p->getPtRes();
+
+
+  TH1F* h_kin_var = p->kinMJ();
+  TH1F* h_dress_nom = p->dressedMJ();
+  TH1F* h_dress_stat = (TH1F*)h_dress_nom->Clone("h_dress_stat");
+
+  //Get mc non closure hist
+  if(!isMC){
+    mc->getHistMJ(incl,njets,reg,btag);
+    TH1F *mcHist = mc->getNonClosure();
+
+    for(int bin =1; bin <= N_MJ_bins; bin++){
+      double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+      double data_err = h_dress_nom->GetBinError(bin);
+      double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+
+      h_dress_nom->SetBinError(bin,err);
+    }
+  }
+
+  //Scale bin contents by bin width
+  /*wait but what are the bins? Can put them here by hand by thats awkward...
+     --> Can get bin edges of one of the histos
+     --> Or make MJ_bins a class variable.*/
+
+  for(int bin = 1; bin <= N_MJ_bins; bin ++){
+    h_kin_var->SetBinContent(bin, h_kin_var->GetBinContent(bin)/MJ_width[bin-1]);
+    h_kin_var->SetBinError(bin, h_kin_var->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_stat->SetBinContent(bin, h_dress_stat->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_stat->SetBinError(bin, 0);
+    h_dress_nom->SetBinContent(bin,h_dress_nom->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_nom->SetBinError(bin,h_dress_nom->GetBinError(bin)/MJ_width[bin-1]);
+  }
+
+  TH1F *ratio_nom = (TH1F*)h_kin_var->Clone("ratio_nom");
+  ratio_nom->Divide(h_dress_stat);
+  ratio_nom->GetXaxis()->SetTitle("M_{J}^{#Sigma} [TeV]");
+
+  TH1F *ratio_band = (TH1F*)h_dress_nom->Clone("ratio_band");
+  ratio_band->Divide(h_dress_stat);
+  ratio_band->SetLineColor(0);
+  ratio_band->SetMarkerSize(0);
+  ratio_band->SetFillColor(kRed);
+  ratio_band->SetFillStyle(3010);
+
+  h_kin_var->SetLineColor(1);
+  h_kin_var->SetMarkerColor(1);
+
+  h_dress_nom->SetLineColor(2);
+  h_dress_nom->SetMarkerColor(2);
+  h_dress_nom->SetMarkerSize(0.001);
+  h_dress_nom->SetFillColor(kRed);
+  h_dress_nom->SetFillStyle(3010);
+  h_dress_stat->SetLineColor(2);
+  ratio_nom->SetLineColor(1);
+  ratio_nom->SetMarkerColor(1);
+
+  char c_pred[200];
+  char c_pred_int[200];
+  char c_obs[200];
+  sprintf(c_obs,"M_{J,obs}  = %3.1f", obs);
+  sprintf(c_pred,"M_{J,pred} = %3.1f #pm %3.1f #pm %3.1f", pred,pred_error, pred_error2);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_kin_var->GetXaxis()->SetRangeUser(0,2);
+  h_kin_var->GetYaxis()->SetRangeUser(max(1.,0.9*h_kin_var->GetMinimum()),3*h_kin_var->GetMaximum());
+  h_kin_var->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_kin_var->GetYaxis()->SetTitleSize(18);
+  h_kin_var->GetYaxis()->SetTitleFont(43);
+  h_kin_var->GetYaxis()->SetTitleOffset(1.);
+  h_kin_var->GetYaxis()->SetLabelSize(0.06);
+  h_kin_var->GetXaxis()->SetLabelOffset(999);
+  h_kin_var->GetXaxis()->SetLabelSize(0);
+  h_kin_var->Draw("E");
+  h_dress_nom->Draw("E2same");
+  h_dress_stat->Draw("histsame");
+  h_kin_var->Draw("Esame");
+
+  float chi2 = 0;
+  float k = 0;
+  for(int i = 1; i <= h_kin_var->GetNbinsX(); i++){
+    if(reg == "VR" or (njets==4 and h_kin_var->GetBinLowEdge(i+1) <= 0.8) or (njets==5 and h_kin_var->GetBinLowEdge(i+1) <= 0.6)){
+      chi2+=((h_dress_stat->GetBinContent(i) - h_kin_var->GetBinContent(i))*(h_dress_stat->GetBinContent(i) - h_kin_var->GetBinContent(i)))/(h_dress_nom->GetBinError(i)*h_dress_nom->GetBinError(i));
+      //    cout<<h_kin_var->GetBinLowEdge(i+1)<<endl;
+      k++;
+    }
+  }
+  chi2/=k;
+    cout<<"chi2/dof = "<<chi2<<endl;
+
+  c_1->cd(2);
+  ratio_nom->GetXaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetTitle("Data/Pred");
+  if(isMC) ratio_nom->GetYaxis()->SetTitle("Kin/Pred");
+  ratio_nom->GetYaxis()->SetTitleSize(18);
+  ratio_nom->GetYaxis()->SetTitleFont(43);
+  ratio_nom->GetYaxis()->SetTitleOffset(1.);
+  ratio_nom->GetYaxis()->SetLabelFont(43);
+  ratio_nom->GetYaxis()->SetLabelSize(18);
+  ratio_nom->GetYaxis()->SetNdivisions(5);
+  ratio_nom->GetXaxis()->SetTitleSize(18);
+  ratio_nom->GetXaxis()->SetTitleFont(43);
+  ratio_nom->GetXaxis()->SetTitleOffset(4.0);
+  ratio_nom->GetXaxis()->SetLabelFont(43);
+  ratio_nom->GetXaxis()->SetLabelSize(18);
+  ratio_nom->SetTitle("");
+  ratio_nom->Draw("E1");
+  ratio_band->Draw("E2same");
+  ratio_nom->Draw("E1same");
+  
+  c_1->cd(1);
+
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.28,y_loc+0.25,"Internal",0.06,0.10);
+  TLegend leg_1(x_loc-0.05,y_loc-0.05,x_loc+0.15,y_loc+0.15);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1.AddEntry(h_kin_var,kin_name,"LP");
+  leg_1.AddEntry(h_dress_nom,"Prediction","LF");
+  leg_1.SetLineColor(0);
+  leg_1.SetTextSize(0.06);
+  leg_1.SetShadowColor(0);
+  leg_1.SetFillStyle(0);
+  leg_1.SetFillColor(0);
+  leg_1.Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+  if(njets >= 4 && !blindPlot){
+  cap.DrawLatex(x_loc-0.05,y_loc+0.18,c_obs);
+  cap.DrawLatex(x_loc-0.05,y_loc+0.25,c_pred);}
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.25,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15,0.25,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15,0.1,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15,0.17,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_NS.pdf",plot_locations,region,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_NS.png",plot_locations,region,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+
+  if(!incl) texfile << Form("%i &",njets);
+  if(incl) texfile << Form("$ \\geq %i$ &",njets);
+  texfile << jet_multi;
+ 
+  if(reg == "CR") texfile <<"& $ > 1.4$ &";
+  if(reg == "VR") texfile <<Form("& $ > %3.1f$ &",dEta_cut);
+  if(reg == "SR") texfile <<Form("& $ < %3.1f$ &",dEta_cut);
+
+  if(blindPlot) {
+    texfile << Form("\\textbf{\\textit{blinded}} &");
+    texfile << Form(" $%3.1f \\pm %3.1f \\pm %3.1f$ \\\\[0.2em] \n", pred, pred_error, pred_error2);
+  }
+  else {
+    if(isMC) texfile << Form("$%3.1f \\pm %3.1f$ &", obs, obs_error);
+    texfile << Form("$%i$ &", (int)obs);
+    texfile << Form(" $%3.1f \\pm %3.1f \\pm %3.1f$", pred, pred_error, pred_error2);
+    texfile << Form("& $%3.3f$ \\\\[0.2em] \n", pred/obs -1);
+  }
+  return;
+}
+
+void compare_MJs_wSig(string reg,int njets, int btag,bool incl){
+  //compares MJ in dressed and kinematic samples "source", added two signal points.
+
+  SetAtlasStyle();
+  char f_kinematic[300];
+ 
+  const int N_MJ_bins = 14;
+  double MJ_bins[N_MJ_bins+1] = {0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.40,.45,0.5,0.6,0.8,1.0,2.0};
+  double MJ_width[N_MJ_bins];
+  for(int i = 0; i < N_MJ_bins; i++) MJ_width[i] = MJ_bins[i+1]-MJ_bins[i];
+
+  bool blindPlot = (blinded && reg == "SR" && njets >= 4);
+
+  string excStr = "n";
+  if(incl) excStr = "m";
+
+  string source = p->getName();
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  cout << region << " Plot with Signal for " << source << endl;
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  TFile *f_sig[2];
+  TH1F* h_kin_sig[2];
+
+  sprintf(f_kinematic,"%s/kinematic_hists/mg1600_mx650/main_kinematic_mg1600_mx650.root",hist_locations);
+  f_sig[0] = TFile::Open(f_kinematic);
+  h_kin_sig[0] = (TH1F*)f_sig[0]->Get(Form("MJ_%s",region));
+  h_kin_sig[0]->Scale(lumi); 
+
+  //sprintf(f_kinematic,"%s/kinematic_hists/mg1200_mx50/main_kinematic_mg1200_mx50.root",hist_locations);
+  sprintf(f_kinematic,"%s/kinematic_hists/mg1200/main_kinematic_mg1200.root",hist_locations);
+  f_sig[1] = TFile::Open(f_kinematic);
+  h_kin_sig[1] = (TH1F*)f_sig[1]->Get(Form("MJ_%s",region));
+  h_kin_sig[1]->Scale(lumi);
+  TH1F* h_kin_sig_var[2];
+  h_kin_sig_var[0] = (TH1F*)h_kin_sig[0]->Rebin(N_MJ_bins,"h_kin_sig_var_0",MJ_bins);
+  h_kin_sig_var[1] = (TH1F*)h_kin_sig[1]->Rebin(N_MJ_bins,"h_kin_sig_var_1",MJ_bins);
+  
+  p->runPredictionAndHist(incl,njets,reg,btag);
+
+  TH1F* h_kin_var = p->kinMJ();
+  TH1F* h_dress_nom = p->dressedMJ();
+  TH1F* h_dress_stat = (TH1F*)h_dress_nom->Clone("h_dress_stat");
+
+  if(!isMC){
+  //Get mc non closure hist
+  mc->getHistMJ(incl,njets,reg,btag);
+  TH1F *mcHist = mc->getNonClosure();
+
+  for(int bin =1; bin <= N_MJ_bins; bin++){
+    double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+    double data_err = h_dress_nom->GetBinError(bin);
+    double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+
+    h_dress_nom->SetBinError(bin,err);
+  }
+  }
+
+  //Scale bin contents by bin width
+  for(int bin = 1; bin <= N_MJ_bins; bin ++){
+    h_kin_var->SetBinContent(bin, h_kin_var->GetBinContent(bin)/MJ_width[bin-1]);
+    h_kin_var->SetBinError(bin, h_kin_var->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_kin_sig_var[0]->SetBinContent(bin, h_kin_sig_var[0]->GetBinContent(bin)/MJ_width[bin-1]);
+    h_kin_sig_var[0]->SetBinError(bin, h_kin_sig_var[0]->GetBinError(bin)/MJ_width[bin-1]);
+    h_kin_sig_var[1]->SetBinContent(bin, h_kin_sig_var[1]->GetBinContent(bin)/MJ_width[bin-1]);
+    h_kin_sig_var[1]->SetBinError(bin, h_kin_sig_var[1]->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_stat->SetBinContent(bin, h_dress_stat->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_stat->SetBinError(bin, 0);
+    h_dress_nom->SetBinContent(bin, h_dress_nom->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_nom->SetBinError(bin, h_dress_nom->GetBinError(bin)/MJ_width[bin-1]);
+  }
+
+  TH1F *ratio_nom = (TH1F*)h_kin_var->Clone("ratio_nom");
+  ratio_nom->Divide(h_dress_stat);
+  ratio_nom->GetXaxis()->SetTitle("M_{J}^{#Sigma} [TeV]");
+
+  TH1F *ratio_band = (TH1F*)h_dress_nom->Clone("ratio_band");
+  ratio_band->Divide(h_dress_stat);
+  ratio_band->SetLineColor(0);
+  ratio_band->SetMarkerSize(0);
+  ratio_band->SetFillColor(kRed);
+  ratio_band->SetFillStyle(3010);
+
+  h_kin_var->SetLineColor(1);
+  h_kin_var->SetMarkerColor(1);
+  
+  h_kin_sig_var[0]->SetLineColor(8);
+  h_kin_sig_var[0]->SetLineStyle(2);
+  h_kin_sig_var[0]->SetLineWidth(2);
+
+  h_kin_sig_var[1]->SetLineColor(9);
+  h_kin_sig_var[1]->SetLineStyle(3);
+  h_kin_sig_var[1]->SetLineWidth(2);
+
+  h_dress_nom->SetLineColor(2);
+  h_dress_nom->SetMarkerColor(2);
+  h_dress_nom->SetMarkerSize(0.001);
+  h_dress_nom->SetFillColor(kRed);
+  h_dress_nom->SetFillStyle(3010);
+  h_dress_stat->SetLineColor(2);
+  ratio_nom->SetLineColor(1);
+  ratio_nom->SetMarkerColor(1);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_kin_var->GetXaxis()->SetRangeUser(0,2);
+  h_kin_var->GetYaxis()->SetRangeUser(max(1.,0.9*h_kin_var->GetMinimum()),3*h_kin_var->GetMaximum());
+  h_kin_var->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_kin_var->GetYaxis()->SetTitleSize(18);
+  h_kin_var->GetYaxis()->SetTitleFont(43);
+  h_kin_var->GetYaxis()->SetTitleOffset(1.);
+  h_kin_var->GetYaxis()->SetLabelSize(0.06);
+  h_kin_var->GetXaxis()->SetLabelOffset(999);
+  h_kin_var->GetXaxis()->SetLabelSize(0);
+  h_kin_var->Draw("E");
+  h_dress_nom->Draw("E2same");
+  h_dress_stat->Draw("histsame");
+  h_kin_sig_var[0]->Draw("histsame");
+  h_kin_sig_var[1]->Draw("histsame");
+  h_kin_var->Draw("Esame");
+
+  c_1->cd(2);
+  ratio_nom->GetXaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetTitle("Data/Pred"); 
+  if(isMC) ratio_nom->GetYaxis()->SetTitle("Kin/Pred");
+  ratio_nom->GetYaxis()->SetTitleSize(18);
+  ratio_nom->GetYaxis()->SetTitleFont(43);
+  ratio_nom->GetYaxis()->SetTitleOffset(1.);
+  ratio_nom->GetYaxis()->SetLabelFont(43);
+  ratio_nom->GetYaxis()->SetLabelSize(18);
+  ratio_nom->GetYaxis()->SetNdivisions(5);
+  ratio_nom->GetXaxis()->SetTitleSize(18);
+  ratio_nom->GetXaxis()->SetTitleFont(43);
+  ratio_nom->GetXaxis()->SetTitleOffset(4.0);
+  ratio_nom->GetXaxis()->SetLabelFont(43);
+  ratio_nom->GetXaxis()->SetLabelSize(18);
+  ratio_nom->SetTitle("");
+  ratio_nom->Draw("E1");
+  ratio_band->Draw("E2same");
+  ratio_nom->Draw("E1same");
+  
+  c_1->cd(1);
+
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.28,y_loc+0.25,"Internal",0.06,0.10);
+  TLegend *leg_1 = new TLegend(x_loc-0.05,y_loc-0.25,x_loc+0.15,y_loc+0.15);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1->AddEntry(h_kin_var,kin_name,"LP");
+  leg_1->AddEntry(h_dress_nom,"Prediction","LF");
+  leg_1->AddEntry(h_kin_sig_var[0],"m_{#tilde{g}} = 1600 GeV","L");
+  leg_1->AddEntry((TObject*)0, "m_{#tilde{#chi_{1}^{0}}} = 650 GeV", "");
+  leg_1->AddEntry((TObject*)0, "", "");
+  leg_1->AddEntry(h_kin_sig_var[1],"m_{#tilde{g}} = 1200 GeV","L");
+  //leg_1->AddEntry((TObject*)0, "m_{#tilde{#chi_{1}^{0}}} = 50 GeV", "");
+  leg_1->SetLineColor(0);
+  leg_1->SetTextSize(0.06);
+  leg_1->SetShadowColor(0);
+  leg_1->SetFillStyle(0);
+  leg_1->SetFillColor(0);
+  leg_1->Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.25,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15,0.25,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15,0.1,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15,0.17,jet_multi);
+
+  TLine l;
+  if(reg == "SR"){
+  l.SetLineWidth(3);
+  l.DrawLine(SR_cut,0,SR_cut,h_kin_var->GetBinContent(11)*2);
+
+  sprintf(jet_multi,"SR");
+  cap.DrawLatex(0.42,0.17,jet_multi);  
+  sprintf(jet_multi,"#rightarrow");
+  cap.SetTextSize(0.12);
+  cap.DrawLatex(0.415,0.1,jet_multi);
+}
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_wSig_NS.pdf",plot_locations,region,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_wSig_NS.png",plot_locations,region,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+  
+
+  region = Form("%ij%s_b%i",njets,reg.c_str(),btag);
+  sprintf(save_name,"%s/plot_MJ_%s_%s_%s_wSig_wLine_NS.pdf",plot_locations,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/plot_MJ_%s_%s_%s_wSig_wLine_NS.C",plot_locations,SR_cut_str,region,source.c_str());
+  c_1->SaveAs(save_name);
+  
+
+  return;
+}
+
+void compare_MJs_wPtRes(string reg,int njets, int btag,bool incl){
+
+  SetAtlasStyle();
+  const int N_MJ_bins = 14;
+  double MJ_bins[N_MJ_bins+1] = {0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.40,.45,0.5,0.6,0.8,1.0,2.0};
+  double MJ_width[N_MJ_bins];
+  for(int i = 0; i < N_MJ_bins; i++) MJ_width[i] = MJ_bins[i+1]-MJ_bins[i];
+  string excStr = "n";
+  if(incl) excStr = "m";
+
+  bool blindPlot = (blinded && reg == "SR" && njets >= 4);
+  string source = p->getName();
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  p->runPredictionAndHist(incl,njets,reg,btag);
+
+  TH1F* h_kin_var = p->kinMJ();
+  TH1F* h_dress_nom = p->dressedMJ();
+  TH1F* h_dress_syst_up = p->dressedMJ_up();
+  TH1F* h_dress_syst_down = p->dressedMJ_down();
+
+  //Scale bin contents by bin width
+  for(int bin = 1; bin <= N_MJ_bins; bin ++){
+    h_kin_var->SetBinContent(bin, h_kin_var->GetBinContent(bin)/MJ_width[bin-1]);
+    h_kin_var->SetBinError(bin, h_kin_var->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_nom->SetBinContent(bin, h_dress_nom->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_nom->SetBinError(bin, h_dress_nom->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_syst_up->SetBinContent(bin, h_dress_syst_up->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_syst_up->SetBinError(bin, h_dress_syst_up->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_syst_down->SetBinContent(bin, h_dress_syst_down->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_syst_down->SetBinError(bin, h_dress_syst_down->GetBinError(bin)/MJ_width[bin-1]);
+  }
+
+  TH1F *ratio_nom = (TH1F*)h_kin_var->Clone("ratio_nom");
+  ratio_nom->Divide(h_dress_nom);
+  TH1F *ratio_up = (TH1F*)h_kin_var->Clone("ratio_up");
+  ratio_up->Divide(h_dress_syst_up);
+  TH1F *ratio_down = (TH1F*)h_kin_var->Clone("ratio_down");
+  ratio_down->Divide(h_dress_syst_down);
+
+  ratio_nom->GetXaxis()->SetTitle("M_{J}^{#Sigma} [TeV]");
+
+  h_kin_var->SetLineColor(1);
+  h_kin_var->SetMarkerColor(1);
+  
+  h_dress_nom->SetLineColor(2);
+  h_dress_syst_up->SetLineColor(3);
+  h_dress_syst_down->SetLineColor(4);
+
+  ratio_nom->SetLineColor(2);
+  ratio_nom->SetMarkerColor(2);
+  ratio_up->SetLineColor(3);
+  ratio_up->SetMarkerColor(3);
+  ratio_down->SetLineColor(4);
+  ratio_down->SetMarkerColor(4);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_kin_var->GetXaxis()->SetRangeUser(0,2);
+  h_kin_var->GetYaxis()->SetRangeUser(max(1.,0.9*h_kin_var->GetMinimum()),3*h_kin_var->GetMaximum());
+  h_kin_var->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_kin_var->GetYaxis()->SetTitleSize(18);
+  h_kin_var->GetYaxis()->SetTitleFont(43);
+  h_kin_var->GetYaxis()->SetTitleOffset(1.);
+  h_kin_var->GetYaxis()->SetLabelSize(0.06);
+  h_kin_var->GetXaxis()->SetLabelOffset(999);
+  h_kin_var->GetXaxis()->SetLabelSize(0);
+  h_kin_var->Draw("E");
+  h_dress_nom->Draw("histsame");
+  h_dress_syst_down->Draw("histsame");
+  h_dress_syst_up->Draw("histsame");
+  h_kin_var->Draw("Esame");
+
+  c_1->cd(2);
+  ratio_nom->GetXaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetTitle("Data/Pred");
+  if(isMC) ratio_nom->GetYaxis()->SetTitle("Kin/Pred");
+  ratio_nom->GetYaxis()->SetTitleSize(18);
+  ratio_nom->GetYaxis()->SetTitleFont(43);
+  ratio_nom->GetYaxis()->SetTitleOffset(1.);
+  ratio_nom->GetYaxis()->SetLabelFont(43);
+  ratio_nom->GetYaxis()->SetLabelSize(18);
+  ratio_nom->GetYaxis()->SetNdivisions(5);
+  ratio_nom->GetXaxis()->SetTitleSize(18);
+  ratio_nom->GetXaxis()->SetTitleFont(43);
+  ratio_nom->GetXaxis()->SetTitleOffset(4.0);
+  ratio_nom->GetXaxis()->SetLabelFont(43);
+  ratio_nom->GetXaxis()->SetLabelSize(18);
+  ratio_nom->SetTitle("");
+  ratio_nom->Draw("E1");
+  ratio_up->Draw("E1same");
+  ratio_down->Draw("E1same");
+  
+  c_1->cd(1);
+
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.28,y_loc+0.25,"Internal",0.06,0.10);
+  TLegend leg_1(x_loc-0.05,y_loc+0.1,x_loc+0.1,y_loc+0.3);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1.AddEntry(h_kin_var,kin_name,"LP");
+  leg_1.AddEntry(h_dress_nom,"Dressed, Nom.","F");
+  leg_1.AddEntry(h_dress_syst_up,"Dressed, Shift up","F");
+  leg_1.AddEntry(h_dress_syst_down,"Dressed, Shift down","F");
+  leg_1.SetLineColor(0);
+  leg_1.SetTextSize(0.06);
+  leg_1.SetShadowColor(0);
+  leg_1.SetFillStyle(0);
+  leg_1.SetFillColor(0);
+  leg_1.Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.25,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15,0.25,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15,0.1,jet_multi);
+
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15,0.17,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_MJ_wPtRes_%s_%s_NS.pdf",plot_locations,region,region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_MJ_wPtRes_%s_%s_NS.png",plot_locations,region,region,source.c_str());
+  c_1->SaveAs(save_name);
+  return;
+
+}
+
+void compare_Predictions(string reg,int njets, int btag,bool incl){
+  SetAtlasStyle();
+  const int N_MJ_bins = 14;
+  double MJ_bins[N_MJ_bins+1] = {0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.40,.45,0.5,0.6,0.8,1.0,2.0};
+  double MJ_width[N_MJ_bins];
+  for(int i = 0; i < N_MJ_bins; i++) MJ_width[i] = MJ_bins[i+1]-MJ_bins[i];
+  
+  bool blindPlot = (blinded && reg == "SR" && njets >= 4);
+  char* baseline = (char*)(p->getName().c_str());
+
+  string excStr = "n";
+  if(incl) excStr = "m";
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  bkgPrediction *p1 = new bkgPrediction(Form("%s_3jCR",baseline),SR_cut);
+  bkgPrediction *p2 = new bkgPrediction(Form("%s_simple",baseline),SR_cut);
+  bkgPrediction *p3 = new bkgPrediction(Form("%s_bMatched",baseline),SR_cut);
+  bkgPrediction *p4 = new bkgPrediction(Form("%s_Flt70bMatched",baseline),SR_cut);
+
+  p->runPredictionAndHist(incl,njets,reg,btag);
+  p1->getHistMJ(incl,njets,reg,btag);
+  p2->getHistMJ(incl,njets,reg,btag);
+  p3->getHistMJ(incl,njets,reg,btag);
+  p4->getHistMJ(incl,njets,reg,btag);
+
+  TH1F *h_dress_nom = p->dressedMJ();
+  TH1F *h_dress_stat = (TH1F*)h_dress_nom->Clone("h_dress_stat");
+  TH1F *h_dress_old = p1->dressedMJ();
+  TH1F *h_dress_soft = p2->dressedMJ();
+  TH1F *h_dress_soft2 = p3->dressedMJ();
+  TH1F *h_dress_bjet = p4->dressedMJ();
+  
+  if(!isMC){
+  mc->getHistMJ(incl,njets,reg,btag);
+  TH1F *mcHist = mc->getNonClosure();
+
+  for(int bin =1; bin <= N_MJ_bins; bin++){
+    double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+    double data_err = h_dress_nom->GetBinError(bin);
+    double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+
+    h_dress_nom->SetBinError(bin,err);
+  }
+}
+
+
+  //Scale bin contents by bin width
+  for(int bin = 1; bin <= N_MJ_bins; bin ++){
+    h_dress_stat->SetBinContent(bin, h_dress_stat->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_stat->SetBinError(bin, 0);
+
+    h_dress_nom->SetBinContent(bin, h_dress_nom->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_nom->SetBinError(bin, h_dress_nom->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_old->SetBinContent(bin, h_dress_old->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_old->SetBinError(bin, h_dress_old->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_soft->SetBinContent(bin, h_dress_soft->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_soft->SetBinError(bin, h_dress_soft->GetBinError(bin)/MJ_width[bin-1]);
+
+    h_dress_bjet->SetBinContent(bin, h_dress_bjet->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_bjet->SetBinError(bin, h_dress_bjet->GetBinError(bin)/MJ_width[bin-1]);
+  
+    h_dress_soft2->SetBinContent(bin, h_dress_soft2->GetBinContent(bin)/MJ_width[bin-1]);
+    h_dress_soft2->SetBinError(bin, h_dress_soft2->GetBinError(bin)/MJ_width[bin-1]);
+  }
+
+
+
+  TH1F *ratio[4];
+  ratio[0] = (TH1F*)h_dress_old->Clone("ratio_old");
+  ratio[1] = (TH1F*)h_dress_soft->Clone("ratio_soft");
+  ratio[2] = (TH1F*)h_dress_soft2->Clone("ratio_soft2");
+  ratio[3] = (TH1F*)h_dress_bjet->Clone("ratio_bjet");
+  ratio[0]->Divide(h_dress_nom);
+  ratio[1]->Divide(h_dress_nom);
+  ratio[2]->Divide(h_dress_nom);
+  ratio[3]->Divide(h_dress_nom);
+  ratio[0]->GetXaxis()->SetTitle("M_{J}^{#Sigma} [TeV]");
+
+  TH1F *ratio_band = (TH1F*)h_dress_nom->Clone("ratio_band");
+  ratio_band->Divide(h_dress_stat);
+  ratio_band->SetLineColor(0);
+  ratio_band->SetMarkerSize(0);
+  ratio_band->SetFillColor(5);
+  //ratio_band->SetFillStyle(3010);
+
+  //error band
+  h_dress_nom->SetLineColor(1);
+  //h_dress_nom->SetLineWidth(0);
+  h_dress_nom->SetMarkerColor(1);
+  h_dress_nom->SetMarkerSize(0.001);
+  h_dress_nom->SetFillColor(5);
+  //h_dress_nom->SetFillStyle(3010);
+
+  h_dress_stat->SetLineColor(1);
+  h_dress_stat->SetLineStyle(1);
+  h_dress_old->SetLineColor(2);
+  h_dress_old->SetLineStyle(2);
+  h_dress_soft->SetLineColor(4);
+  h_dress_soft->SetLineStyle(5);
+  h_dress_soft2->SetLineColor(6);
+  h_dress_soft2->SetLineStyle(9);
+  h_dress_bjet->SetLineColor(7);
+  h_dress_bjet->SetLineStyle(3);
+  h_dress_bjet->SetLineWidth(3);
+
+  ratio[0]->SetLineColor(2);
+  ratio[0]->SetLineStyle(2);
+  ratio[0]->SetMarkerColor(2);
+  ratio[0]->SetMarkerSize(0.001);
+
+  ratio[1]->SetLineColor(4);
+  ratio[1]->SetLineStyle(5);
+  ratio[1]->SetMarkerColor(4);
+  ratio[1]->SetMarkerSize(0.001);
+
+  ratio[2]->SetLineColor(6);
+  ratio[2]->SetLineStyle(9);
+  ratio[2]->SetMarkerColor(6);
+  ratio[2]->SetMarkerSize(0.001);
+
+  ratio[3]->SetLineColor(7);
+  ratio[3]->SetLineStyle(3);
+  ratio[3]->SetMarkerColor(7);
+  ratio[3]->SetMarkerSize(0.001);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_dress_nom->GetXaxis()->SetRangeUser(0,2);
+  h_dress_nom->GetYaxis()->SetRangeUser(max(1.,0.9*h_dress_nom->GetMinimum()),3*h_dress_nom->GetMaximum());
+  h_dress_nom->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_dress_nom->GetYaxis()->SetTitleSize(18);
+  h_dress_nom->GetYaxis()->SetTitleFont(43);
+  h_dress_nom->GetYaxis()->SetTitleOffset(1.);
+  h_dress_nom->GetYaxis()->SetLabelSize(0.06);
+  h_dress_nom->GetXaxis()->SetLabelOffset(999);
+  h_dress_nom->GetXaxis()->SetLabelSize(0);
+  h_dress_nom->Draw("E2same");
+  h_dress_stat->Draw("histsame");
+  h_dress_old->Draw("histsame");
+  h_dress_soft->Draw("histsame");
+  h_dress_soft2->Draw("histsame");
+  h_dress_bjet->Draw("histsame"); 
+
+  c_1->cd(2);
+  ratio[0]->GetXaxis()->SetRangeUser(0,2.0);
+  ratio[0]->GetYaxis()->SetRangeUser(0,2.0);
+  ratio[0]->GetYaxis()->SetTitle("./Baseline");
+  ratio[0]->GetYaxis()->SetTitleSize(18);
+  ratio[0]->GetYaxis()->SetTitleFont(43);
+  ratio[0]->GetYaxis()->SetTitleOffset(1.);
+  ratio[0]->GetYaxis()->SetLabelFont(43);
+  ratio[0]->GetYaxis()->SetLabelSize(18);
+  ratio[0]->GetYaxis()->SetNdivisions(5);
+  ratio[0]->GetXaxis()->SetTitleSize(18);
+  ratio[0]->GetXaxis()->SetTitleFont(43);
+  ratio[0]->GetXaxis()->SetTitleOffset(4.0);
+  ratio[0]->GetXaxis()->SetLabelFont(43);
+  ratio[0]->GetXaxis()->SetLabelSize(18);
+  ratio[0]->SetTitle("");
+  ratio[0]->Draw("hist");
+  ratio_band->Draw("E2same");
+  ratio[0]->Draw("histsame");
+  ratio[1]->Draw("histsame");
+  ratio[2]->Draw("histsame");
+  ratio[3]->Draw("histsame");
+  
+  c_1->cd(1);
+
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.3,y_loc+0.25,"Internal",0.06,0.10);
+  TLegend *leg_1 = new TLegend(x_loc-0.08,y_loc,x_loc+0.15,y_loc+0.3);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1->AddEntry(h_dress_nom,"Baseline","LF");
+  leg_1->AddEntry(h_dress_old,"3jCR","F");
+  leg_1->AddEntry(h_dress_soft,"3jCR, #geq 1 soft Jet","F");
+  leg_1->AddEntry(h_dress_soft2,"Sep. 5jCRb0, 5jCRb1","F");
+  leg_1->AddEntry(h_dress_bjet,"b-matched Templ.","F");
+  leg_1->SetLineColor(0);
+  leg_1->SetTextSize(0.06);
+  leg_1->SetShadowColor(0);
+  leg_1->SetFillStyle(0);
+  leg_1->SetFillColor(0);
+  leg_1->Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.28,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15,0.25,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15,0.1,jet_multi);
+
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15,0.17,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_MJ_altMethods_%s_NS.pdf",plot_locations,region,region);
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_MJ_altMethods_%s_NS.png",plot_locations,region,region);
+  c_1->SaveAs(save_name);
+  return;
+}
+
+void compare_Mass(string reg,int jet, int njets,int btag,bool incl,int etaCut = 0){
+  //compare individual jet mass in dressed and kinematic samples "source"
+
+  SetAtlasStyle();
+  const int N_Mass_bins = 6;
+  double Mass_bins[N_Mass_bins+1] = {0,0.1,0.2,0.3,0.6,1,2.0};
+  double Mass_width[N_Mass_bins];
+  for(int i = 0; i < N_Mass_bins; i++) Mass_width[i] = Mass_bins[i+1]-Mass_bins[i];
+
+  string excStr = "n";
+  if(incl) excStr = "m"; 
+
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  string source = p->getName();
+  cout << region << " Jet " << jet << endl;
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  char* etaStr = (char*)"";
+  if(etaCut == 1) etaStr = (char*)"central_";
+  if(etaCut == 2) etaStr = (char*)"forward_";
+
+  p->getHistMass_wErrors(jet,incl,njets,reg,btag,etaCut);
+
+  TH1F* h_kin_var = p->kinMass(jet);
+  TH1F* h_dress_nom = p->dressedMass(jet);
+  TH1F* h_dress_stat = (TH1F*)h_dress_nom->Clone("h_dress_stat");
+
+  //Get mc non closure hist
+  mc->getHistMass(jet,incl,njets,reg,btag,etaCut);
+  TH1F *mcHist = mc->getNonClosureMass(jet);
+
+  for(int bin =1; bin <= N_Mass_bins; bin++){
+    double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+    double data_err = h_dress_nom->GetBinError(bin);
+    double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+
+    h_dress_nom->SetBinError(bin,err);
+  }
+
+  //Scale bin contents by bin width
+  for(int bin = 1; bin <= N_Mass_bins; bin ++){
+    h_kin_var->SetBinContent(bin, h_kin_var->GetBinContent(bin)/Mass_width[bin-1]);
+    h_kin_var->SetBinError(bin, h_kin_var->GetBinError(bin)/Mass_width[bin-1]);
+
+    h_dress_stat->SetBinContent(bin, h_dress_stat->GetBinContent(bin)/Mass_width[bin-1]);
+    h_dress_stat->SetBinError(bin, 0);
+    h_dress_nom->SetBinContent(bin,h_dress_nom->GetBinContent(bin)/Mass_width[bin-1]);
+    h_dress_nom->SetBinError(bin,h_dress_nom->GetBinError(bin)/Mass_width[bin-1]);
+  }
+
+  //print out scale factors
+  /*
+    for(int bin = 1; bin <= N_Mass_bins; bin++){
+    cout << "Mass range: [" << Mass_bins[bin-1] << " TeV, " << Mass_bins[bin] << " TeV]    ";
+    cout << "data/pred: " << h_kin_var->GetBinContent(bin)/h_dress_nom->GetBinContent(bin) << endl;
+  }
+  */
+
+  TH1F *ratio_nom = (TH1F*)h_kin_var->Clone("ratio_nom");
+  ratio_nom->Divide(h_dress_stat);
+  char* vartitle;
+  if(jet == 1) vartitle = (char*)"Mass of Leading Jet [TeV]";
+  if(jet == 2) vartitle = (char*)"Mass of Second Jet [TeV]";
+  if(jet == 3) vartitle = (char*)"Mass of Third Jet [TeV]";
+  if(jet == 4) vartitle = (char*)"Mass of Fourth Jet [TeV]";
+
+  ratio_nom->GetXaxis()->SetTitle(vartitle);
+
+  TH1F *ratio_band = (TH1F*)h_dress_nom->Clone("ratio_band");
+  ratio_band->Divide(h_dress_stat);
+  ratio_band->SetLineColor(0);
+  ratio_band->SetMarkerSize(0);
+  ratio_band->SetFillColor(kRed);
+  ratio_band->SetFillStyle(3010);
+
+  h_kin_var->SetLineColor(1);
+  h_kin_var->SetMarkerColor(1);
+
+  h_dress_nom->SetLineColor(2);
+  h_dress_nom->SetMarkerColor(2);
+  h_dress_nom->SetMarkerSize(0.001);
+  h_dress_nom->SetFillColor(kRed);
+  h_dress_nom->SetFillStyle(3010);
+  h_dress_stat->SetLineColor(2);
+  ratio_nom->SetLineColor(1);
+  ratio_nom->SetMarkerColor(1);
+
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_kin_var->GetXaxis()->SetRangeUser(0,1);
+  h_kin_var->GetYaxis()->SetRangeUser(1.E1,3*h_kin_var->GetMaximum());
+  h_kin_var->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_kin_var->GetYaxis()->SetTitleSize(18);
+  h_kin_var->GetYaxis()->SetTitleFont(43);
+  h_kin_var->GetYaxis()->SetTitleOffset(1.);
+  h_kin_var->GetYaxis()->SetLabelSize(0.06);
+  h_kin_var->GetXaxis()->SetLabelOffset(999);
+  h_kin_var->GetXaxis()->SetLabelSize(0);
+  h_kin_var->Draw("E");
+  h_dress_nom->Draw("E2same");
+  h_dress_stat->Draw("histsame");
+  h_kin_var->Draw("Esame");
+
+  c_1->cd(2);
+  ratio_nom->GetXaxis()->SetRangeUser(0,1.0);
+  ratio_nom->GetYaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetTitle("Data/Pred");
+  if(isMC) ratio_nom->GetYaxis()->SetTitle("Kin/Pred");
+  ratio_nom->GetYaxis()->SetTitleSize(18);
+  ratio_nom->GetYaxis()->SetTitleFont(43);
+  ratio_nom->GetYaxis()->SetTitleOffset(1.);
+  ratio_nom->GetYaxis()->SetLabelFont(43);
+  ratio_nom->GetYaxis()->SetLabelSize(18);
+  ratio_nom->GetYaxis()->SetNdivisions(5);
+  ratio_nom->GetXaxis()->SetTitleSize(18);
+  ratio_nom->GetXaxis()->SetTitleFont(43);
+  ratio_nom->GetXaxis()->SetTitleOffset(3.5);
+  ratio_nom->GetXaxis()->SetLabelFont(43);
+  ratio_nom->GetXaxis()->SetLabelSize(18);
+  ratio_nom->SetTitle("");
+  ratio_nom->Draw("E1");
+  ratio_band->Draw("E2same");
+  ratio_nom->Draw("E1same");
+  
+  c_1->cd(1);
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.28,y_loc+0.25,"Preliminary",0.06,0.10);
+  TLegend leg_1(x_loc+0.05,y_loc+0.05,x_loc+0.25,y_loc+0.25);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1.AddEntry(h_kin_var,kin_name,"LP");
+  leg_1.AddEntry(h_dress_nom,"Prediction","LF");
+  leg_1.SetLineColor(0);
+  leg_1.SetTextSize(0.06);
+  leg_1.SetShadowColor(0);
+  leg_1.SetFillStyle(0);
+  leg_1.SetFillColor(0);
+  leg_1.Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.25,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15+0.52,0.34+0.2,jet_multi);
+
+  if(etaCut == 1) sprintf(jet_multi, "|#eta| < 1.0");
+  if(etaCut == 2) sprintf(jet_multi, "|#eta| #geq 1.0");
+  if(etaCut) cap.DrawLatex(.15+0.52,0.17+0.2,jet_multi);
+
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15+0.52,0.1+0.2,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15+0.52,0.25+.2,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_m%i_%s%s_%s_NS.pdf",plot_locations,region,jet,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_m%i_%s%s_%s_NS.png",plot_locations,region,jet,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  
+   
+  region = Form("%ij%s_b%i",njets,reg.c_str(),btag);
+  sprintf(save_name,"%s/plot_m%i_%s%s_%s_NS.pdf",plot_locations,jet,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/plot_m%i_%s%s_%s_NS.C",plot_locations,jet,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  
+  return;
+}
+
+void compare_JetMass(string reg, int njets,int btag,bool incl,int etaCut = 0){
+  //compare jet mass (all jets) in dressed and kinematic samples
+
+  SetAtlasStyle();
+  const int N_Mass_bins = 6;
+  double Mass_bins[N_Mass_bins+1] = {0,0.1,0.2,0.3,0.6,1,2.0};
+  double Mass_width[N_Mass_bins];
+  for(int i = 0; i < N_Mass_bins; i++) Mass_width[i] = Mass_bins[i+1]-Mass_bins[i];
+
+  string excStr = "n";
+  if(incl) excStr = "m"; 
+
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  string source = p->getName();
+  cout << region << " Jet Mass" << endl;
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  char* etaStr = (char*)"";
+  if(etaCut == 1) etaStr = (char*)"central_";
+  if(etaCut == 2) etaStr = (char*)"forward_";
+
+  p->getHistJetMass_wErrors(incl,njets,reg,btag,etaCut);
+
+  TH1F* h_kin_var = p->kinJetMass();
+  TH1F* h_dress_nom = p->dressedJetMass();
+  TH1F* h_dress_stat = (TH1F*)h_dress_nom->Clone("h_dress_stat");
+
+  //Get mc non closure hist
+  mc->getHistJetMass(incl,njets,reg,btag,etaCut);
+  TH1F *mcHist = mc->getNonClosureJetMass();
+
+  for(int bin =1; bin <= N_Mass_bins; bin++){
+    double mc_err = mcHist->GetBinContent(bin)*h_dress_nom->GetBinContent(bin);
+    double data_err = h_dress_nom->GetBinError(bin);
+    double err = pow(pow(mc_err,2)+pow(data_err,2),0.5);
+
+    h_dress_nom->SetBinError(bin,err);
+  }
+  
+  //Scale bin contents by bin width
+  for(int bin = 1; bin <= N_Mass_bins; bin ++){
+    h_kin_var->SetBinContent(bin, h_kin_var->GetBinContent(bin)/Mass_width[bin-1]);
+    h_kin_var->SetBinError(bin, h_kin_var->GetBinError(bin)/Mass_width[bin-1]);
+
+    h_dress_stat->SetBinContent(bin, h_dress_stat->GetBinContent(bin)/Mass_width[bin-1]);
+    h_dress_stat->SetBinError(bin, 0);
+    h_dress_nom->SetBinContent(bin,h_dress_nom->GetBinContent(bin)/Mass_width[bin-1]);
+    h_dress_nom->SetBinError(bin,h_dress_nom->GetBinError(bin)/Mass_width[bin-1]);
+  }
+
+  TH1F *ratio_nom = (TH1F*)h_kin_var->Clone("ratio_nom");
+  ratio_nom->Divide(h_dress_nom);
+  char* vartitle = (char*) "Jet Mass [TeV]";
+
+  ratio_nom->GetXaxis()->SetTitle(vartitle);
+
+  TH1F *ratio_band = (TH1F*)h_dress_nom->Clone("ratio_band");
+  ratio_band->Divide(h_dress_stat);
+  ratio_band->SetLineColor(0);
+  ratio_band->SetMarkerSize(0);
+  ratio_band->SetFillColor(kRed);
+  ratio_band->SetFillStyle(3010);
+
+  h_kin_var->SetLineColor(1);
+  h_kin_var->SetMarkerColor(1);
+
+  h_dress_nom->SetLineColor(2);
+  h_dress_nom->SetMarkerColor(2);
+  h_dress_nom->SetMarkerSize(0.001);
+  h_dress_nom->SetFillColor(kRed);
+  h_dress_nom->SetFillStyle(3010);
+  h_dress_stat->SetLineColor(2);
+  ratio_nom->SetLineColor(1);
+  ratio_nom->SetMarkerColor(1);
+
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_kin_var->GetXaxis()->SetRangeUser(0,1);
+  h_kin_var->GetYaxis()->SetRangeUser(1.E1,3*h_kin_var->GetMaximum());
+  h_kin_var->GetYaxis()->SetTitle("Events / Bin width [TeV^{-1}]");
+  h_kin_var->GetYaxis()->SetTitleSize(18);
+  h_kin_var->GetYaxis()->SetTitleFont(43);
+  h_kin_var->GetYaxis()->SetTitleOffset(1.);
+  h_kin_var->GetYaxis()->SetLabelSize(0.06);
+  h_kin_var->GetXaxis()->SetLabelOffset(999);
+  h_kin_var->GetXaxis()->SetLabelSize(0);
+  h_kin_var->Draw("E");
+  h_dress_nom->Draw("E2same");
+  h_dress_stat->Draw("histsame");
+  h_kin_var->Draw("Esame");
+
+  c_1->cd(2);
+  ratio_nom->GetXaxis()->SetRangeUser(0,1.0);
+  ratio_nom->GetYaxis()->SetRangeUser(0,2.0);
+  ratio_nom->GetYaxis()->SetTitle("Data/Pred");
+  if(isMC) ratio_nom->GetYaxis()->SetTitle("Kin/Pred");
+  ratio_nom->GetYaxis()->SetTitleSize(18);
+  ratio_nom->GetYaxis()->SetTitleFont(43);
+  ratio_nom->GetYaxis()->SetTitleOffset(1.);
+  ratio_nom->GetYaxis()->SetLabelFont(43);
+  ratio_nom->GetYaxis()->SetLabelSize(18);
+  ratio_nom->GetYaxis()->SetNdivisions(5);
+  ratio_nom->GetXaxis()->SetTitleSize(18);
+  ratio_nom->GetXaxis()->SetTitleFont(43);
+  ratio_nom->GetXaxis()->SetTitleOffset(3.5);
+  ratio_nom->GetXaxis()->SetLabelFont(43);
+  ratio_nom->GetXaxis()->SetLabelSize(18);
+  ratio_nom->SetTitle("");
+  ratio_nom->Draw("E1");
+  ratio_band->Draw("E2same");
+  ratio_nom->Draw("E1same");
+  
+  c_1->cd(1);
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc-0.28,y_loc+0.25,"Internal",0.06,0.10);
+  TLegend leg_1(x_loc+0.05,y_loc+0.05,x_loc+0.25,y_loc+0.25);
+
+  char* kin_name = (char*)"Data";
+  if(isMC) kin_name = (char*)"Kinematic";
+
+  leg_1.AddEntry(h_kin_var,kin_name,"LP");
+  leg_1.AddEntry(h_dress_nom,"Prediction","LF");
+  leg_1.SetLineColor(0);
+  leg_1.SetTextSize(0.06);
+  leg_1.SetShadowColor(0);
+  leg_1.SetFillStyle(0);
+  leg_1.SetFillColor(0);
+  leg_1.Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc-0.25,y_loc+0.18,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.15+0.52,0.34+0.2,jet_multi);
+
+  if(etaCut == 1) sprintf(jet_multi, "|#eta| < 1.0");
+  if(etaCut == 2) sprintf(jet_multi, "|#eta| #geq 1.0");
+  if(etaCut) cap.DrawLatex(.15+0.52,0.17+0.2,jet_multi);
+
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.15+0.52,0.1+0.2,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.15+0.52,0.25+.2,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_jet_m_%s%s_%s_NS.pdf",plot_locations,region,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_jet_m_%s%s_%s_NS.png",plot_locations,region,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  
+  /*
+  char save_name[300]; 
+  region = Form("%ij%s_b%i",njets,reg.c_str(),btag);
+  sprintf(save_name,"%s/plot_jet_m_%s%s_%s_NS.pdf",plot_locations,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/plot_jet_m_%s%s_%s_NS.C",plot_locations,etaStr,region, source.c_str());
+  c_1->SaveAs(save_name);
+  */
+  
+  return;
+}
+
+void drawYield(double low, double high, string reg,int njets, int btag,bool incl){
+  SetAtlasStyle();
+  string excStr = "n";
+  if(incl) excStr = "m";
+  string source = p->getName();
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  p->runPredictionRange(low,high,incl,njets,reg,btag);
+  TH1F *yield = p->getYield();
+  double med = GetMedian(yield);
+  double mean = yield->GetMean();
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  //yield->Rebin(2);
+  yield->GetXaxis()->SetRangeUser(med - 40, med + 50);
+  yield->GetXaxis()->SetTitle("Predicted yield");
+  yield->GetXaxis()->SetTitleSize(0.04);
+  yield->GetYaxis()->SetTitle("Number of PEs");
+  yield->GetYaxis()->SetTitleOffset(1);
+  yield->GetYaxis()->SetTitleSize(0.04);
+
+  yield->Draw("hist");
+
+  TLine *meanLine = new TLine(mean,0,mean,yield->GetMaximum()+7);
+  meanLine->SetLineWidth(2);
+  meanLine->SetLineColor(2);
+  meanLine->Draw();
+
+  TLine *medLine = new TLine(med,0,med,yield->GetMaximum()+7);
+  medLine->SetLineWidth(2);
+  medLine->SetLineColor(4);
+  medLine->Draw();
+
+  double x_loc = 0.60; double y_loc = 0.60;
+  ATLASLabel(x_loc,y_loc+0.25,"Internal",0.04,0.10);
+
+  TLegend *leg = new TLegend(0.6,0.25,0.75,0.35);
+  leg->AddEntry(meanLine,"Mean","L");
+  leg->AddEntry(medLine,"Median","L");
+  leg->SetLineColor(0);
+  leg->SetTextSize(0.04);
+  leg->SetShadowColor(0);
+  leg->SetFillStyle(0);
+  leg->SetFillColor(0);
+  leg->Draw();
+
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.04);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc,y_loc+0.2,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.6,0.6,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.6,0.5,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.6,0.55,jet_multi);
+
+  bool moveLabel = true;
+
+  if(low == 0){
+    sprintf(jet_multi,"M_{J}^{#Sigma} #leq %i GeV ",(int)(1e3*high));
+    moveLabel = false;
+  } 
+  else if(high >= 2) {
+    sprintf(jet_multi,"M_{J}^{#Sigma} #geq %i GeV ",(int)(1e3*low));
+    moveLabel = false;
+  }
+  else sprintf(jet_multi,"%i GeV #leq M_{J}^{#Sigma} #leq %i GeV ",(int)(1e3*low),(int)(1e3*high));
+
+  if(moveLabel) cap.DrawLatex(0.55,0.45,jet_multi);
+  else cap.DrawLatex(0.6,0.45,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_yield_MJ_%igev_%igev_%s_%s_NS.pdf",plot_locations,region,(int)(1e3*low),(int)(1e3*high),region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_yield_MJ_%igev_%igev_%s_%s_NS.png",plot_locations,region,(int)(1e3*low),(int)(1e3*high),region,source.c_str());
+  c_1->SaveAs(save_name);
+  return;
+}
+
+
+void compareYield(double low, double high, string reg,int njets, int btag,bool incl){
+  SetAtlasStyle();
+  string excStr = "n";
+  if(incl) excStr = "m";
+  string source = p->getName();
+  char* region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+  gROOT->ProcessLine(Form(".! mkdir %s/%s",plot_locations,region));
+
+  bkgPrediction *p1 = new bkgPrediction("dataE3_sameTempl",SR_cut);
+
+  p->runPredictionRange(low,high,incl,njets,reg,btag);
+  TH1F *yield = p->getYield();
+  double med = GetMedian(yield);
+  double mean = yield->GetMean();
+
+  p1->runPredictionRange(low,high,incl,njets,reg,btag);
+  TH1F *yield1 = p1->getYield();
+  yield1->SetLineColor(2);
+
+  TH1F *yieldP = new TH1F("yieldP","yieldP",1e6,0,1e6);
+  if(gRandom) delete gRandom;
+  gRandom = new TRandom3(0);
+  for(int i = 0; i < 1000; i++) yieldP->Fill(gRandom->PoissonD(med));
+  yieldP->SetLineColor(4);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  yield->Rebin(4);
+  yield1->Rebin(4);
+  yieldP->Rebin(4);
+  yield->GetXaxis()->SetRangeUser(med - 40, med + 60);
+  yield->GetXaxis()->SetTitle("Predicted yield");
+  yield->GetXaxis()->SetTitleSize(0.04);
+  yield->GetYaxis()->SetTitle("Number of PEs");
+  yield->GetYaxis()->SetRangeUser(0,yield1->GetMaximum()*1.1);
+  yield->GetYaxis()->SetTitleOffset(1);
+  yield->GetYaxis()->SetTitleSize(0.04);
+
+  yield->Draw("hist");
+  //yield1->Draw("histsame");
+  yieldP->Draw("histsame");
+
+  TLine *meanLine = new TLine(mean,0,mean,yield->GetMaximum()+7);
+  meanLine->SetLineWidth(2);
+  meanLine->SetLineColor(2);
+  //meanLine->Draw();
+
+  TLine *medLine = new TLine(med,0,med,yield->GetMaximum()+7);
+  medLine->SetLineWidth(2);
+  medLine->SetLineColor(4);
+  //medLine->Draw();
+
+  double x_loc = 0.60; double y_loc = 0.40;
+  ATLASLabel(x_loc,y_loc+0.25,"Internal",0.04,0.10);
+
+  TLegend *leg = new TLegend(0.5,0.75,0.75,0.9);
+  //leg->AddEntry(meanLine,"Mean","L");
+  //leg->AddEntry(medLine,"Median","L");
+  leg->AddEntry(yield,"Nominal Prediction","L");
+  //leg->AddEntry((TObject*)0, Form("rms: %3.1f",yield->GetRMS()), "");
+  //leg->AddEntry(yield1,"(p_{T},#eta) bin fluctuations","L");
+  //leg->AddEntry((TObject*)0, Form("rms: %3.1f",yield1->GetRMS()), "");
+  leg->AddEntry(yieldP,Form("Pois(%3.1f)",med),"L");
+
+  leg->SetLineColor(0);
+  leg->SetTextSize(0.04);
+  leg->SetShadowColor(0);
+  leg->SetFillStyle(0);
+  leg->SetFillColor(0);
+  leg->Draw();
+
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.04);
+
+  char jet_multi[100];
+  sprintf(jet_multi, "%3.1f fb^{-1}  data",lumi);
+  if(isMC) sprintf(jet_multi, "%3.1f fb^{-1}  pythia",lumi);
+  cap.DrawLatex(x_loc,y_loc+0.2,jet_multi);
+  
+  if(!incl){sprintf(jet_multi, "N_{largeR jet} = %d",njets);}
+  if(incl){sprintf(jet_multi, "N_{largeR jet} #geq %d",njets);}
+  cap.DrawLatex(.6,0.5,jet_multi);
+
+  if(reg == "CR") sprintf(jet_multi, "|#Delta#eta| > 1.4");
+  if(reg == "VR") sprintf(jet_multi, "|#Delta#eta| > %3.1f",dEta_cut);
+  if(reg == "SR") sprintf(jet_multi, "|#Delta#eta| < %3.1f",dEta_cut);
+  cap.DrawLatex(0.6,0.4,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.6,0.45,jet_multi);
+
+  bool moveLabel = true;
+
+  if(low == 0){
+    sprintf(jet_multi,"M_{J}^{#Sigma} #leq %i GeV ",(int)(1e3*high));
+    moveLabel = false;
+  } 
+  else if(high >= 2) {
+    sprintf(jet_multi,"M_{J}^{#Sigma} #geq %i GeV ",(int)(1e3*low));
+    moveLabel = false;
+  }
+  else sprintf(jet_multi,"%i GeV #leq M_{J}^{#Sigma} #leq %i GeV ",(int)(1e3*low),(int)(1e3*high));
+
+  if(moveLabel) cap.DrawLatex(0.55,0.35,jet_multi);
+  else cap.DrawLatex(0.6,0.35,jet_multi);
+
+  region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/%s/plot_compareYields_MJ_%igev_%igev_%s_%s_NS.pdf",plot_locations,region,(int)(1e3*low),(int)(1e3*high),region,source.c_str());
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/%s/plot_compareYields_MJ_%igev_%igev_%s_%s_NS.png",plot_locations,region,(int)(1e3*low),(int)(1e3*high),region,source.c_str());
+  c_1->SaveAs(save_name);
+  return;
+}
+
+
+/*************************************************************************************************/
+/**************************** TEMPLATE STATISTICS PLOTS ******************************************/
+/*************************************************************************************************/
+
+
+void templateStatsLog(int btag,bool temp3j=false,int split=0){
+  //template statistics plot, with log grid overlaid. somewhat hacked together.
+  string source = p->getName();
+
+  sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  SetAtlasStyle();
+  char hist_locations[200];
+  char f_kinematic[300];
+  char templ[100];
+  double bdtBins[15] = {-1.0,-0.9,-0.85,-0.8,-0.75,-0.7,-0.6,-0.5,-0.3,-0.1,0.1,0.3,0.5,1.0};
+  char* region = Form("CR_b%i",btag);
+  cout << region << " Templates" << endl;
+  sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
+  sprintf(f_kinematic,"%s/kinematic_hists/%s/main_kinematic_%s.root",hist_locations, source.c_str(), source.c_str());
+
+  TFile *f_kin = TFile::Open(f_kinematic);
+  sprintf(templ,"templGrid_b%i",btag);
+  if(temp3j) sprintf(templ,"templGrid_3j_b%i",btag);
+  if(split == 1) sprintf(templ,"templGrid_12_b%i",btag);
+  if(split == 2) sprintf(templ,"templGrid_3_b%i",btag);
+  TH2F* h_grid = (TH2F*)f_kin->Get(templ);
+  sprintf(templ,"templGrid_log_b%i",btag);
+  if(temp3j) sprintf(templ,"templGrid_3j_log_b%i",btag);
+  TH2F* h_grid_log = (TH2F*)f_kin->Get(templ);
+  
+  
+  const int nPtBins = (const int)h_grid->GetNbinsX();
+  double lowEdge;
+  for(int j =1; j <= nPtBins;j++){
+    lowEdge = h_grid->GetXaxis()->GetBinLowEdge(j)*1e3;
+    h_grid_log->GetXaxis()->SetBinLabel(j, Form("> %i",(int)lowEdge));
+  }
+
+
+  //  for(int i = 1; i < 5; i++) h_grid_log->GetYaxis()->SetBinLabel(i,Form("%3.1f-%3.1f",etaBins[i-1],etaBins[i]));
+  h_grid_log->GetYaxis()->SetTitle("|#eta|");
+  h_grid_log->GetXaxis()->SetTitle("Jet p_{T} [GeV]");
+  
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  TPad *pad1 = new TPad("pad1","",0,0,1,1);
+  TPad *pad2 = new TPad("pad2","",0,0,1,1);
+  pad2->SetFillColor(0);
+  pad2->SetFillStyle(4000);
+  pad2->SetFrameFillStyle(0);
+
+   pad1->Draw();
+   pad1->cd();
+   pad1->SetLogx();
+  h_grid->GetXaxis()->SetNdivisions(0);
+  h_grid->GetYaxis()->SetNdivisions(0);
+  
+  gStyle->SetPaintTextFormat("3.0f");
+  h_grid->SetMarkerSize(1.5);
+  
+  h_grid->Draw("text60");
+
+  pad2->Draw();
+  pad2->cd();
+  pad2->SetGrid();
+  h_grid_log->SetMarkerColor(0);
+  h_grid_log->SetMarkerSize(0);
+  h_grid_log->Draw("text");
+  
+  h_grid_log->GetXaxis()->LabelsOption("d");
+  h_grid_log->GetXaxis()->SetTitleSize(0.04);
+  //h_grid_log->GetXaxis()->SetLabelSize(0.03);
+  h_grid_log->GetXaxis()->SetTitleOffset(1.3);
+  h_grid_log->GetYaxis()->SetTitleSize(0.04);
+  h_grid_log->GetYaxis()->SetTitleOffset(0.8);
+
+  ATLASLabel(0.15,0.90,"Internal",0.04,0.10);
+
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.04);
+
+  char label[100];
+  sprintf(label,"#sqrt{s} = 13TeV  %3.1f fb^{-1}",lumi);
+  cap.DrawLatex(0.35,0.9,label);
+  sprintf(label,"b-veto");
+  if(btag ==1 ) sprintf(label,"b-tag");
+  if(btag ==9 ) sprintf(label,"inclusive");
+  cap.DrawLatex(0.79,0.9,label);
+
+  char* split_str = (char*)"";
+  if(temp3j) {
+    split_str = (char*)"3j_"; 
+    sprintf(label,"3j + 0 soft jets");
+    cap.DrawLatex(0.6,0.9,label);}
+
+
+  if(split){
+    if(split == 1) {sprintf(label,"2 lead jets"); split_str = (char*)"2lead_";}
+    if(split == 2) {sprintf(label,"3rd jet"); split_str = (char*)"3rd_";}
+    cap.DrawLatex(0.6,0.9,label);
+
+  }
+  c_1->SaveAs(Form("%s/templateStats_%sb%i.png",plot_locations,split_str,btag));
+  c_1->SaveAs(Form("%s/templateStats_%sb%i.pdf",plot_locations,split_str,btag));
+
+return;
+}
+
+void templateStats(int btag, int softJet = 0){
+  //template statistics plot, allows for multiple grids in one kinematic samples
+  //still somewhat hacked together.
+
+  string source = p->getName();
+
+  sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  SetAtlasStyle();
+  char hist_locations[200];
+  char f_kinematic[300];
+  char templ[100];
+  double bdtBins[15] = {-1.0,-0.9,-0.85,-0.8,-0.75,-0.7,-0.6,-0.5,-0.3,-0.1,0.1,0.3,0.5,1.0};
+  //double ptBins[9] = {0.2,0.244,0.293,0.364,0.445,0.52,0.6,0.733,0.896};
+
+  char* region = Form("CR_b%i",btag);
+  cout << region << " Templates" << endl;
+  sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
+  sprintf(f_kinematic,"%s/kinematic_hists/%s/main_kinematic_%s.root",hist_locations, source.c_str(), source.c_str());
+
+  TFile *f_kin = TFile::Open(f_kinematic);
+  cout<<"Kinematic file opened: "<<f_kinematic<<endl;
+
+  sprintf(templ,"templGrid_b%i",btag);
+  if(softJet == 1) sprintf(templ,"templGrid_4j_b%i",btag);
+  if(softJet == 2) sprintf(templ,"templGrid_5j_b%i",btag);
+  TH2F* h_grid = (TH2F*)f_kin->Get(templ);
+  cout<<"Template grid opened "<<templ<<endl;
+  const int nPtBins = (const int)h_grid->GetNbinsX();
+  cout<<"nPtBins = "<<nPtBins<<endl;
+  double lowEdge;
+  for(int j =1; j <= nPtBins;j++){
+    lowEdge = h_grid->GetXaxis()->GetBinLowEdge(j)*1e3;
+    h_grid->GetXaxis()->SetBinLabel(j, Form("> %i",(int)lowEdge));
+  }
+  cout<<"X-axis labels set"<<endl;
+  //  for(int i = 1; i < 5; i++) h_grid->GetYaxis()->SetBinLabel(i,Form("%3.1f - %3.1f",etaBins[i-1],etaBins[i]));
+  h_grid->GetYaxis()->SetTitle("BDT score");
+  h_grid->GetXaxis()->SetTitle("Jet p_{T} [GeV]");
+  cout<<"axis titles set"<<endl;
+  
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->SetGridy();
+  
+  gStyle->SetPaintTextFormat("3.0f");
+  h_grid->SetMarkerSize(1.5);
+  
+  h_grid->Draw("text60");
+  cout<<"Grid drawn"<<endl;
+  TLine l;
+  l.SetLineStyle(2);
+  for(int i = 2; i < nPtBins+1; i++){
+    lowEdge = h_grid->GetXaxis()->GetBinLowEdge(i);
+    //l.DrawLine(lowEdge,0,lowEdge,2);
+  }
+  
+  h_grid->GetXaxis()->LabelsOption("d");
+  h_grid->GetXaxis()->SetTitleSize(0.04);
+  //h_grid->GetXaxis()->SetLabelSize(0.03);
+  h_grid->GetXaxis()->SetTitleOffset(1.3);
+  h_grid->GetYaxis()->SetTitleSize(0.04);
+  h_grid->GetYaxis()->SetTitleOffset(1.2);
+
+  ATLASLabel(0.15,0.90,"Internal",0.04,0.10);
+
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.04);
+
+  char label[100];
+  sprintf(label,"#sqrt{s} = 13TeV  %3.1f fb^{-1}",lumi);
+  cap.DrawLatex(0.35,0.9,label);
+  sprintf(label,"b-veto");
+  if(btag ==1 ) sprintf(label,"b-tag");
+  if(btag ==9 ) sprintf(label,"inclusive");
+  cap.DrawLatex(0.77,0.9,label);
+
+  char* split_str = (char*)"3j_";
+
+  if(softJet){
+    if(softJet == 1) {sprintf(label,"3j+1 soft jet"); split_str = (char*)"4j_";}
+    if(softJet == 2) {sprintf(label,"3j+2 soft jets"); split_str = (char*)"5j_";}
+    cap.DrawLatex(0.6,0.9,label);
+
+  }
+  c_1->SaveAs(Form("%s/templateStats_%sb%i.png",plot_locations,split_str,btag));
+  c_1->SaveAs(Form("%s/templateStats_%sb%i.pdf",plot_locations,split_str,btag));
+
+return;
+}
+
+void drawTemplates(int ptBin, int btag){
+  //compares jet mass pdfs in a given pt bin and b-tag region
+  //jet mass pdfs in different eta bins are overlaid.
+  string source = p->getName();
+
+  SetAtlasStyle();
+  char hist_locations[200];
+  char f_kinematic[300];
+  char templname[100];
+
+  gROOT->ProcessLine(Form(".! mkdir %s/templates",plot_locations));
+
+  sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
+  sprintf(f_kinematic,"%s/kinematic_hists/%s/main_kinematic_%s.root",hist_locations, source.c_str(), source.c_str());
+  TFile *f_kin = TFile::Open(f_kinematic);
+
+  TH2F *h_grid = (TH2F*)f_kin->Get(Form("templGrid_b%i",btag));
+  TH1F* h_temp[4];
+
+  for(int i = 0; i < 4; i ++){
+    sprintf(templname,"templ_b%i_bdtBin%i_ptBin%i",btag,i+1,ptBin);
+    
+    h_temp[i] = (TH1F*)f_kin->Get(templname);
+    h_temp[i]->Scale(1/h_temp[i]->Integral());
+    h_temp[i]->SetLineColor(i+1);
+  }
+
+  TH1F* h_ratio[3];
+  for(int i = 0; i < 3; i++){
+    h_ratio[i] = (TH1F*)h_temp[i+1]->Clone(Form("ratio_%i",i+2));
+    h_ratio[i]->Divide(h_temp[0]);
+    h_ratio[i]->SetLineColor(i+2);
+  }
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  //c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_temp[0]->GetXaxis()->SetRangeUser(-7,0);
+  h_temp[0]->GetYaxis()->SetRangeUser(0,1.1*h_temp[0]->GetMaximum());
+  h_temp[0]->GetYaxis()->SetTitle("Events (Normalized)");
+  h_temp[0]->GetYaxis()->SetTitleSize(18);
+  h_temp[0]->GetYaxis()->SetTitleFont(43);
+  h_temp[0]->GetYaxis()->SetTitleOffset(1.2);
+  h_temp[0]->GetYaxis()->SetLabelSize(0.06);
+  h_temp[0]->GetXaxis()->SetLabelOffset(999);
+  h_temp[0]->GetXaxis()->SetLabelSize(0);
+  h_temp[0]->Draw("hist");
+  h_temp[1]->Draw("histsame");
+  h_temp[2]->Draw("histsame");
+  h_temp[3]->Draw("histsame");
+
+  c_1->cd(2);
+  h_ratio[0]->GetXaxis()->SetRangeUser(-7,0);
+  h_ratio[0]->GetYaxis()->SetRangeUser(0,2.0);
+  h_ratio[0]->GetXaxis()->SetTitle("log(m/pt)");
+  h_ratio[0]->GetYaxis()->SetTitle(". / BDT score = <0.9");
+
+  h_ratio[0]->GetYaxis()->SetTitleSize(18);
+  h_ratio[0]->GetYaxis()->SetTitleFont(43);
+  h_ratio[0]->GetYaxis()->SetTitleOffset(1.);
+  h_ratio[0]->GetYaxis()->SetLabelFont(43);
+  h_ratio[0]->GetYaxis()->SetLabelSize(18);
+  h_ratio[0]->GetYaxis()->SetNdivisions(5);
+  h_ratio[0]->GetXaxis()->SetTitleSize(18);
+  h_ratio[0]->GetXaxis()->SetTitleFont(43);
+  h_ratio[0]->GetXaxis()->SetTitleOffset(3.6);
+  h_ratio[0]->GetXaxis()->SetLabelFont(43);
+  h_ratio[0]->GetXaxis()->SetLabelSize(18);
+  h_ratio[0]->SetTitle("");
+  h_ratio[0]->Draw("hist");
+  h_ratio[1]->Draw("histsame");
+  h_ratio[2]->Draw("histsame");
+  
+  c_1->cd(1);
+
+
+  ATLASLabel(0.6,0.9,"Internal",0.06,0.10);
+  TLegend *leg_1 = new TLegend(0.15,0.7,0.35,0.9);
+
+  for(int i = 0; i < 4; i++){
+    leg_1->AddEntry(h_temp[i],Form("BDT bin %i",i+1),"F");  
+
+  }
+  
+  leg_1->SetLineColor(0);
+  leg_1->SetTextSize(0.06);
+  leg_1->SetShadowColor(0);
+  leg_1->SetFillStyle(0);
+  leg_1->SetFillColor(0);
+  leg_1->Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+ char jet_multi[100];
+ double ptLow = h_grid->GetXaxis()->GetBinLowEdge(ptBin)*1e3;
+ double ptHigh = h_grid->GetXaxis()->GetBinLowEdge(ptBin+1)*1e3;
+
+  sprintf(jet_multi, "%i GeV < p_{T} < %i GeV",(int)ptLow,(int)ptHigh);
+    if(ptBin ==  h_grid->GetNbinsX()){
+      sprintf(jet_multi,"p_{T} > %i GeV",(int)ptLow);
+    }
+  cap.DrawLatex(0.12,0.6,jet_multi);
+
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+  cap.DrawLatex(0.25,0.5,jet_multi);
+
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/templates/templ_%s_ptBin%i_b%i_NS.pdf",plot_locations,source.c_str(),ptBin,btag);
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/templates/templ_%s_ptBin%i_b%i_NS.png",plot_locations,source.c_str(),ptBin,btag);
+  c_1->SaveAs(save_name);
+  
+  return;
+}
+
+void drawTemplatesBin(int etaBin, int ptBin){
+  //compares jet mass pdfs in a given pt,eta bin, b-veto and b-tag templates are overlaid.
+  string source = p->getName();
+
+  SetAtlasStyle();
+  char hist_locations[200];
+  char f_kinematic[300];
+  char templname[100];
+
+  gROOT->ProcessLine(Form(".! mkdir %s/templates",plot_locations));
+
+  sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
+  sprintf(f_kinematic,"%s/kinematic_hists/%s/main_kinematic_%s.root",hist_locations, source.c_str(), source.c_str());
+  TFile *f_kin = TFile::Open(f_kinematic);
+
+  TH2F *h_grid = (TH2F*)f_kin->Get("templGrid_b0");
+  TH1F* h_temp[2];
+
+  sprintf(templname,"templ_b0_bdtBin%i_ptBin%i",etaBin,ptBin);
+  h_temp[0] = (TH1F*)f_kin->Get(templname);
+  h_temp[0]->Scale(1/h_temp[0]->Integral());
+  h_temp[0]->SetLineColor(1);
+  h_temp[0]->SetMarkerSize(0.001);
+
+  sprintf(templname,"templ_b1_bdtBin%i_ptBin%i",etaBin,ptBin);
+  h_temp[1] = (TH1F*)f_kin->Get(templname);
+  h_temp[1]->Scale(1/h_temp[1]->Integral());
+  h_temp[1]->SetLineColor(2);
+  h_temp[1]->SetMarkerSize(0.001);
+
+
+  TH1F* h_ratio = (TH1F*)h_temp[1]->Clone(Form("ratio"));
+  h_ratio->Divide(h_temp[0]);
+ // h_ratio->SetLineColor(1);
+
+  TCanvas *c_1 = new TCanvas("c_1","c_1");
+  c_1->Divide(1, 2);
+  c_1->GetPad(1)->SetPad(0,0.30,1,1.);
+  c_1->GetPad(2)->SetPad(0,0,1,0.30);
+  c_1->GetPad(2)->SetGridy();
+  c_1->GetPad(1)->SetLogy();
+  c_1->GetPad(2)->SetTopMargin(0.035);
+  c_1->GetPad(1)->SetBottomMargin(0.025);
+  c_1->GetPad(2)->SetBottomMargin(0.31);
+  
+  c_1->cd(1);
+  h_temp[0]->GetXaxis()->SetRangeUser(-7,0);
+  h_temp[0]->GetYaxis()->SetRangeUser(1e-3,1.5*h_temp[0]->GetMaximum());
+  h_temp[0]->GetYaxis()->SetTitle("Events (Normalized)");
+  h_temp[0]->GetYaxis()->SetTitleSize(18);
+  h_temp[0]->GetYaxis()->SetTitleFont(43);
+  h_temp[0]->GetYaxis()->SetTitleOffset(1.2);
+  h_temp[0]->GetYaxis()->SetLabelSize(0.06);
+  h_temp[0]->GetXaxis()->SetLabelOffset(999);
+  h_temp[0]->GetXaxis()->SetLabelSize(0);
+  h_temp[0]->Draw("Ehist");
+  h_temp[1]->Draw("Ehistsame");
+
+  c_1->cd(2);
+  h_ratio->GetXaxis()->SetRangeUser(-7,0);
+  h_ratio->GetYaxis()->SetRangeUser(0,2.0);
+  h_ratio->GetXaxis()->SetTitle("log(m/pt)");
+  h_ratio->GetYaxis()->SetTitle("b-tag / b-veto");
+  h_ratio->GetYaxis()->SetTitleSize(18);
+  h_ratio->GetYaxis()->SetTitleFont(43);
+  h_ratio->GetYaxis()->SetTitleOffset(1.);
+  h_ratio->GetYaxis()->SetLabelFont(43);
+  h_ratio->GetYaxis()->SetLabelSize(18);
+  h_ratio->GetYaxis()->SetNdivisions(5);
+  h_ratio->GetXaxis()->SetTitleSize(18);
+  h_ratio->GetXaxis()->SetTitleFont(43);
+  h_ratio->GetXaxis()->SetTitleOffset(3.6);
+  h_ratio->GetXaxis()->SetLabelFont(43);
+  h_ratio->GetXaxis()->SetLabelSize(18);
+  h_ratio->SetTitle("");
+  h_ratio->Draw("E1");
+  
+  c_1->cd(1);
+
+
+  ATLASLabel(0.12,0.1,"Internal",0.06,0.10);
+  TLegend *leg_1 = new TLegend(0.15,0.7,0.35,0.9);
+  leg_1->AddEntry(h_temp[0],"b-veto","F");
+  leg_1->AddEntry(h_temp[1],"b-tag","F");
+  
+  leg_1->SetLineColor(0);
+  leg_1->SetTextSize(0.06);
+  leg_1->SetShadowColor(0);
+  leg_1->SetFillStyle(0);
+  leg_1->SetFillColor(0);
+  leg_1->Draw();
+  
+  TLatex cap;
+  cap.SetNDC();
+  cap.SetTextColor(1);
+  cap.SetTextSize(0.06);
+
+ char jet_multi[100];
+ double ptLow = h_grid->GetXaxis()->GetBinLowEdge(ptBin)*1e3;
+ double ptHigh = h_grid->GetXaxis()->GetBinLowEdge(ptBin+1)*1e3;
+
+  sprintf(jet_multi, "%i GeV < p_{T} < %i GeV",(int)ptLow,(int)ptHigh);
+    if(ptBin ==  h_grid->GetNbinsX()){
+      sprintf(jet_multi,"p_{T} > %i GeV",(int)ptLow);
+    }
+  cap.DrawLatex(0.12,0.6,jet_multi);
+
+    sprintf(jet_multi,"n_{subjet} = %i",etaBin);
+  cap.DrawLatex(0.18,0.5,jet_multi);
+
+  char save_name[300]; 
+  sprintf(save_name,"%s/templates/templ_%s_bdtBin%i_ptBin%i_NS.pdf",plot_locations,source.c_str(),etaBin,ptBin);
+  
+  c_1->SaveAs(save_name);
+  sprintf(save_name,"%s/templates/templ_%s_bdtBin%i_ptBin%i_NS.png",plot_locations,source.c_str(),etaBin,ptBin);
+  
+  c_1->SaveAs(save_name);
+  
+
+  return;
+}
+/*************************************************************************************************/
+/**************************** HELPER FUNCTIONS FOR TABLES ****************************************/
+/*************************************************************************************************/
+
+void predTableLine(string reg,int njets, int btag,bool incl){
+  //used by predTable(), makes predictions with variable MJ cut.
+  p->runPredictionRange(SR_cut,13.0,incl,njets,reg,btag);
+  double obs = p->getObs();
+  double obs_error = p->getObsError();
+  double pred = p->getPred();
+  double pred_error = p->getPESpread();
+  double pred_error2 = p->getPtRes();
+  double dev = pred/obs - 1;
+  double pred_err_tot = sqrt(pow(pred_error,2) + pow(pred_error2,2));
+  double dev_err = sqrt(pow(pred_err_tot/obs,2) + pow(pred/obs,2)*pow(0./obs,2));
+
+  char jet_multi[100];
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+
+  char* dEta_str = Form("& $ < %3.1f$",dEta_cut);
+  if(reg == "VR") dEta_str = Form("& $ >%3.1f$",dEta_cut);
+
+  // MJCut & njet & btag & |dEta| cut & truth & pred & pred/truth -1
+  texfile_pred << Form("$ > %3.2f$ & ",SR_cut);
+  if(!incl) texfile_pred << Form("%i & ",njets);
+  if(incl) texfile_pred << Form("$ \\geq %i$ &",njets);
+  texfile_pred << jet_multi;
+  texfile_pred << dEta_str;
+  texfile_pred << Form("& $%3.1f \\pm %3.1f$", obs, obs_error);
+  texfile_pred << Form("& $%3.1f \\pm %3.1f \\pm %3.1f$",pred,pred_error,pred_error2); 
+  texfile_pred << Form("& $%3.3f \\pm %3.4f$ \\\\ \n",dev,dev_err);
+
+  return;
+}
+void limitTableLine(int njets, int btag,bool incl,double L = 3.2,bool useRes = true){
+  if(p->getLumi() != L) p->setLumi(L);
+  p->runPredictionRange(SR_cut,13.0,incl,njets,"SR",btag);
+  double eBres = p->getPtRes();
+  if(!useRes) eBres = 0;
+
+  char jet_multi[100];
+  if(btag == 0){sprintf(jet_multi,"b-veto");}
+  if(btag == 1){sprintf(jet_multi,"b-tag");}
+  if(btag == 9){sprintf(jet_multi,"inclusive");}
+
+  double sig3 = Z(0.3,p->getPred(),p->getPESpread(),eBres,L);
+  double lim = limit(0.3,p->getPred(),p->getPESpread(),eBres,L);
+
+  if(njets > 3 && btag > 0){
+    //calc 95CL and 3Sig
+    texfile_limits << Form("$ > %3.2f$ & ",SR_cut);
+    if(!incl) texfile_limits << Form("%i &",njets);
+    if(incl) texfile_limits << Form("$ \\geq %i$ &",njets);
+    texfile_limits << jet_multi;
+    texfile_limits << Form("& $%3.1f$ &",lim);
+    texfile_limits << Form(" $%3.1f$ \\\\ \n",sig3);
+
+    if(incl){
+    pyList3Sig << Form("%3.1f",sig3);
+    pyList95CL << Form("%3.1f",lim);
+  }
+  }
+  return;
+}
+
+
+void bkgTableTextLine(double low, double high,string reg,int njets, int btag,bool incl){
+  //used by bktTableText(), makes prediction in some MJ region [low, high], outputs in text format
+  p->runPredictionRange(low,high,incl,njets,reg,btag);
+  double obs = p->getObs();
+  double pred = p->getPred();
+  double pred_error = p->getPESpread();
+  double pred_error2 = p->getPtRes();
+  double pred_err_tot = sqrt(pow(pred_error,2)+pow(pred_error2,2));
+
+
+  char* dEta_str = (char*)"deta14a";
+  if(reg == "VR") dEta_str = (char*)"deta14b";
+  char* jetStr;
+  if(!incl) jetStr = Form("n%i",njets);
+  if(incl) jetStr = Form("m%i",njets);
+
+  char* region = Form("bkg_MJ_%i_%i_b%i_%s_%s",(int)(low*1e3),(int)(high*1e3),btag,jetStr,dEta_str);
+  textfile_bkg << Form("%s %i %3.1f %3.2f \n",region,(int)obs, pred,pred_err_tot);
+}
+
+void summaryTableLine(string reg,int njets, int btag,bool incl){
+  //used by summaryTable, like predTableLine, but adds MC non closure uncertainty.
+  p->runPredictionRange(SR_cut,13,incl,njets,reg,btag);
+  double pred_error3 = p->getPred()*getMCnonClosure(reg,btag,SR_cut);
+
+  char* region = Form("%ij%s",njets,reg.c_str());
+  if(btag == 1) region = Form("%ij%sb1",njets,reg.c_str());
+
+  //region & MJcut& obs & pred
+  texfile_summary << region;
+  texfile_summary << Form("& $> %i$ GeV",(int)(SR_cut*1e3));
+  if(blinded && reg == "SR") texfile_summary << "& {\\bf NA} &" << endl;
+  else texfile_summary << Form("& %i &",(int)p->getObs()); 
+  texfile_summary << Form(" %3.1f $\\pm$ %3.1f $\\pm$ %3.1f $\\pm$ %3.1f \\\\ \n",p->getPred(),p->getPESpread(),p->getPtRes(),pred_error3); 
+}
+
+
+/*************************************************************************************************/
+/************************************ TABLES OF RESULTS  *****************************************/
+/*************************************************************************************************/
+
+void predTable(){
+  //makes a tex table of predicted and observed values with different MJ cuts.
+  //needed to get MC non-closure uncertainty.
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+
+  texfile_pred.open(Form("%s/Predictions_%s.tex",plot_locations,p->getName().c_str()));
+  texfile_pred << "\\documentclass[11pt]{article} \n";
+  texfile_pred << "\\usepackage{amsmath} \n \n";
+  texfile_pred << "\\begin{document} \n";
+  //texfile_pred << "\\centering\n";
+
+  vector<double> Mjcut_vec = {0.6,0.65,0.7,0.75,0.8};
+
+  for(int jets = 3; jets < 5; jets++){
+  texfile_pred << "\\hspace*{-7em}\n";  
+  texfile_pred << "\\begin{tabular}{c c c c c c c}\n";
+  texfile_pred << "$M_{J}$ Cut & $n_{\\text{jet}}$ & b-tagging & $|\\Delta \\eta|$ cut & Truth & Pred &(Pred-Truth)/Truth\\\\[0.2em] \\hline \n";
+    for(int k = 0; k<3; k++){
+      for(int i=0; i < 5; i++){
+        SR_cut = Mjcut_vec[i];
+        predTableLine("SR",jets,btag[k],0);
+        predTableLine("VR",jets,btag[k],0);
+      }
+    }
+    texfile_pred << "\\hline \n \\end{tabular} \n";
+    if(jets < 5) texfile_pred << " \\newpage \n";
+
+  }
+  for(int jets = 4; jets < 6; jets++){
+     texfile_pred << "\\hspace*{-7em}\n";  
+    texfile_pred << "\\begin{tabular}{c c c c c c c}\n";
+  texfile_pred << "$M_{J}$ Cut & $n_{\\text{jet}}$ & b-tagging & $|\\Delta \\eta|$ cut & Truth & Pred &(Pred-Truth)/Truth\\\\[0.2em] \\hline \n";
+    for(int k = 0; k<3; k++){
+      for(int i=0; i < 5; i++){
+        SR_cut = Mjcut_vec[i];
+        predTableLine("SR",jets,btag[k],1);
+        predTableLine("VR",jets,btag[k],1);
+      }
+    }
+    texfile_pred << "\\hline \n \\end{tabular} \n";
+    if(jets < 5) texfile_pred << " \\newpage \n";
+  }
+  texfile_pred << "\\end{document}";
+  texfile_pred.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+void sigPredTable(){
+  //makes a tex table of signal injection results
+  vector<string> source_vec = {"pythia","pythia_ttbar","pythia_ttbarx3"};
+  bkgPrediction *B = new bkgPrediction(source_vec[0],SR_cut,true);
+  bkgPrediction *BS = new bkgPrediction(source_vec[1],SR_cut,true);
+  bkgPrediction *B3S = new bkgPrediction(source_vec[2],SR_cut,true);
+
+  vector<string> btagging = {"b-veto","b-tag","inclusive"};
+  sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_signalInjection",dateStr);
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+
+  texfile_predSig.open(Form("%s/Predictions_signalInjection_wRatios.tex",plot_locations));
+  texfile_predSig << "\\documentclass[11pt]{article} \n";
+  texfile_predSig << "\\usepackage{amsmath} \n \n";
+  texfile_predSig << "\\begin{document} \n";
+  //texfile_predSig << "\\centering\n";
+
+  texfile_predSig << "\\hspace*{-9em}\n";  
+  texfile_predSig << "\\begin{tabular}{c c c c c c c c c}\n";
+  texfile_predSig << "$n_{\\text{jet}}$ & b-tagging & $|\\Delta \\eta|$ cut & pred(B) & pred(B+ttbar) & (B+ttbar)-(B)/(B) &pred(B+3ttbar) &(B+3ttbar)-(B)/(B)\\\\[0.2em] \\hline \n";
+
+  for(int jets = 3; jets < 5; jets++){
+    for(int k = 0; k<3; k++){
+      texfile_predSig << Form("%i &",jets);
+      texfile_predSig << btagging[k];
+      texfile_predSig << "& $ < 1.4$ &";
+
+      B->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("$%3.1f$ &",B->getPred());
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f &",BS->getPred(),BS->getPred()/B->getPred()-1);
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f \\\\\n",B3S->getPred(),B3S->getPred()/B->getPred()-1);
+
+      //region
+      texfile_predSig << Form("%i &",jets);
+      texfile_predSig << btagging[k];
+      texfile_predSig << "& $ > 1.4$ &";
+
+      B->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("$%3.1f$ &",B->getPred());
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f &",BS->getPred(),BS->getPred()/B->getPred()-1);
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f \\\\\n",B3S->getPred(),B3S->getPred()/B->getPred()-1);
+
+    }
+  }
+  for(int jets = 4; jets < 6; jets++){
+       for(int k = 0; k<3; k++){
+      texfile_predSig << Form("$\\geq %i$ &",jets);
+      texfile_predSig << btagging[k];
+      texfile_predSig << "& $ < 1.4$ &";
+
+      B->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("$%3.1f$ &",B->getPred());
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f &",BS->getPred(),BS->getPred()/B->getPred()-1);
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"SR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f \\\\\n",B3S->getPred(),B3S->getPred()/B->getPred()-1);
+
+      texfile_predSig << Form("%i &",jets);
+      texfile_predSig << btagging[k];
+      texfile_predSig << "& $ > 1.4$ &";
+
+      B->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("$%3.1f$ &",B->getPred());
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f &",BS->getPred(),BS->getPred()/B->getPred()-1);
+      BS->runPredictionRange(SR_cut,13.0,0,jets,"VR",btag[k]);
+      texfile_predSig << Form("%3.1f & %3.3f \\\\\n",B3S->getPred(),B3S->getPred()/B->getPred()-1);
+    }
+  }
+  texfile_predSig << "\\hline \n \\end{tabular} \n";
+  texfile_predSig << "\\end{document}";
+  texfile_predSig.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+void limitTable(bool useRes = true){
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  char* resStr = (char*)"";
+  if(!useRes) resStr = (char*)"_withoutPtRes";
+
+  pyList3Sig.open(Form("%s/3sigList_%s%s.text",plot_locations,p->getName().c_str(),resStr));
+  pyList95CL.open(Form("%s/95CLList_%s%s.text",plot_locations,p->getName().c_str(),resStr));
+  texfile_limits.open(Form("%s/Limits_%s%s.tex",plot_locations,p->getName().c_str(),resStr));
+  pyList3Sig << "[";
+  pyList95CL << "[";
+  texfile_limits << "\\documentclass[11pt]{article} \n";
+  texfile_limits << "\\usepackage{amsmath} \n \n";
+  texfile_limits << "\\begin{document} \n";
+  texfile_limits << "\\centering\n";
+
+  vector<double> lumi_vec;
+  vector<double> lumi_future = {6.0,10.0,20.0};
+  lumi_vec.push_back(lumi);
+  for(int i = 0; i < lumi_future.size(); i++) if(lumi < lumi_future[i]) lumi_vec.push_back(lumi_future[i]);
+
+  vector<double> Mjcut_vec = {0.6,0.65,0.7,0.75,0.8};
+
+  for(int l = 0; l < lumi_vec.size(); l++){
+  texfile_limits << "\\begin{tabular}{c c c c c}\n";
+  texfile_limits << Form("&$%3.1f fb^{-1}$&& \\\\ \n",lumi_vec[l]);
+  texfile_limits << "$M_{J}$ Cut & $n_{\\text{jet}}$ & b-tagging & $95\\% $CL & 3$\\sigma $\\\\[0.2em] \\hline \n";
+  int jets = 4;
+    for(int k = 1; k<3; k++){
+      for(int i=0; i < 5; i++){
+        SR_cut = Mjcut_vec[i];
+        limitTableLine(jets,btag[k],0,lumi_vec[l],useRes);
+      }
+    }
+  for(int jets = 4; jets < 6; jets++){
+    for(int k = 1; k<3; k++){
+      for(int i=0; i < 5; i++){
+        SR_cut = Mjcut_vec[i];
+        limitTableLine(jets,btag[k],1,lumi_vec[l],useRes);
+        if(l ==0 && !(jets == 5 && k==2 && i==4)) {
+          pyList3Sig << ", ";
+          pyList95CL << ", ";}
+      }
+    }
+  }
+  texfile_limits << "\\hline \n \\\\\\end{tabular} \n";
+  if(l==0){
+    pyList3Sig << "]";
+    pyList3Sig.close();
+
+    pyList95CL << "]";
+    pyList95CL.close();
+  }
+}
+  texfile_limits << "\\end{document}";
+  texfile_limits.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+void bkgTableText(){ 
+  //makes a text file of predicted (and observed) values in some MJ region.
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  textfile_bkg.open(Form("%s/Predictions_%s.txt",plot_locations,p->getName().c_str()));
+
+  textfile_bkg << "Region obs pred pred_err \n";
+
+  double low = 0.0, high = 0.2; //change this as needed
+
+  for(int jets = 3; jets < 5; jets++){
+    for(int k = 0; k < 3; k++){ //btags
+      bkgTableTextLine(low,high,"SR",jets,btag[k],0);
+      bkgTableTextLine(low,high,"VR",jets,btag[k],0);
+    }
+  }
+  for(int jets = 4; jets < 6; jets++){
+    for(int k = 0; k < 3; k++){
+      bkgTableTextLine(low,high,"SR",jets,btag[k],1);
+      bkgTableTextLine(low,high,"VR",jets,btag[k],1);
+    }
+  }
+  textfile_bkg.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+void summaryTable(string reg){
+  //makes *nice* tex table of observed and predicted values in signal or validation regions.
+  //adds MC non closure uncertainty.
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  texfile_summary.open(Form("%s/SummaryTable_%s_%s.tex",plot_locations,reg.c_str(),p->getName().c_str()));
+  texfile_summary << "\\documentclass[11pt]{article} \n";
+  texfile_summary << "\\usepackage{amsmath} \n";
+  texfile_summary << "\\usepackage{graphicx} \n \n";
+  texfile_summary << "\\begin{document} \n";
+
+  texfile_summary << "\\begin{table} \n";
+  texfile_summary << "\\begin{center} \n";
+  texfile_summary << "\\vspace{0.3cm} \n";
+  texfile_summary << "\\scalebox{1.0}{ \n";
+  texfile_summary << "\\hspace*{-0.1cm} \\begin{tabular}{lclclcl} \n";
+  texfile_summary << "\\hline \n";
+  texfile_summary << "Region & $M_{J}^{\\Sigma}$ Cut & observed & expected \\\\ \n";
+  texfile_summary << "\\hline \n";
+
+  SR_cut = 0.6; summaryTableLine(reg,4,1,1);
+  SR_cut = 0.6; summaryTableLine(reg,4,9,1);
+  SR_cut = 0.8; summaryTableLine(reg,4,1,1);
+  SR_cut = 0.8; summaryTableLine(reg,4,9,1);
+  SR_cut = 0.6; summaryTableLine(reg,5,1,1);
+  SR_cut = 0.6; summaryTableLine(reg,5,9,1);
+  SR_cut = 0.8; summaryTableLine(reg,5,1,1);
+  SR_cut = 0.8; summaryTableLine(reg,5,9,1);
+
+
+  texfile_summary << "\\hline \n";
+  texfile_summary << "\\end{tabular} \n";
+  texfile_summary << "} \n";
+  texfile_summary << "\\caption{ \n";
+  if(reg == "SR") texfile_summary << "Observed and expected background yields in four signal regions.";
+  else texfile_summary << "Observed and expected background yields in four validation regions.";
+  texfile_summary << "The three uncertainty components of the background prediction are the ";
+  texfile_summary << "template and jet mass randomization statistical uncertainty,";
+  texfile_summary << "residual \\pt-dependence uncertainty and the Monte Carlo-based non-closure uncertainty. \n}";
+  texfile_summary << "\\label{tab:bkgsummary} \n";
+  texfile_summary << "\\end{center} \n";
+  texfile_summary << "\\end{table} \n";
+
+  texfile_summary << "\\end{document}";
+
+  texfile_summary.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+void scanTable(string reg){
+  //makes tex table of observed and predicted values in signal or validation regions.
+
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  texfile_summary.open(Form("%s/scanTable_%s_%s.tex",plot_locations,reg.c_str(),p->getName().c_str()));
+  texfile_summary << "\\documentclass[11pt]{article} \n";
+  texfile_summary << "\\usepackage{amsmath} \n";
+  texfile_summary << "\\usepackage{graphicx} \n \n";
+  texfile_summary << "\\begin{document} \n";
+
+  texfile_summary << "\\begin{center} \n";
+
+  char* region;
+
+for(int njets = 4; njets < 6; njets++){
+  for(int incl = 0; incl < 2; incl ++){
+  if(!incl && njets == 5) continue;
+  for(int k = 0; k < 3; k++){
+    texfile_summary << "\\hspace*{-0.1cm} \\begin{tabular}{lclclcl} \n";
+    texfile_summary << "\\hline \n";
+    texfile_summary << "Region & $M_{J}^{\\Sigma}$ Cut & observed & expected \\\\ \n";
+    texfile_summary << "\\hline \n";
+
+    double cut = 0.6;
+    while(cut < 13){
+      SR_cut = cut;
+      p->runPredictionRange(SR_cut,13,incl,njets,reg,btag[k]);
+      if(p->getPred() < 1.0) break;
+
+      region = Form("%ij%s",njets,reg.c_str());
+      if(btag[k] == 1) region = Form("%ij%sb1",njets,reg.c_str());
+      if(btag[k] == 0) region = Form("%ij%sb0",njets,reg.c_str());
+
+      //region & MJcut& obs & pred
+      texfile_summary << region;
+      texfile_summary << Form("& $> %i$ GeV",(int)(SR_cut*1e3));
+      texfile_summary << Form("& %i &",(int)p->getObs()); 
+      texfile_summary << Form(" %3.1f $\\pm$ %3.1f $\\pm$ %3.1f \\\\ \n",p->getPred(),p->getPESpread(),p->getPtRes()); 
+      cut += 0.05;
+    }
+    texfile_summary << "\\hline \n";
+    texfile_summary << "\\hline \n";
+    texfile_summary << "\\end{tabular} \n";
+    texfile_summary << "\\newpage \n";
+  }
+}
+}
+  texfile_summary << "\\end{center} \n";
+  texfile_summary << "\\end{document}";
+
+  texfile_summary.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+
+void scanTableText(string reg){
+  //makes tex table of observed and predicted values in signal or validation regions.
+
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  texfile_summary.open(Form("%s/scanTable_%s_%s.txt",plot_locations,reg.c_str(),p->getName().c_str()));
+  texfile_summary << "Region MJcut obs pred templStat ptRes \n";
+  char* region;
+
+for(int njets = 4; njets < 6; njets++){
+  for(int incl = 0; incl < 2; incl ++){
+  if(!incl && njets == 5) continue;
+  for(int k = 0; k < 3; k++){
+    double cut = 0.6;
+    while(cut < 13){
+      SR_cut = cut;
+      p->runPredictionRange(SR_cut,13,incl,njets,reg,btag[k]);
+      if(p->getPred() < 1.0) break;
+
+      region = Form("%ij%s",njets,reg.c_str());
+      if(btag[k] == 1) region = Form("%ij%sb1",njets,reg.c_str());
+      if(btag[k] == 0) region = Form("%ij%sb0",njets,reg.c_str());
+
+      //region & MJcut& obs & pred
+      texfile_summary << region;
+      texfile_summary << Form(" %i ",(int)(SR_cut*1e3));
+      texfile_summary << Form("%i ",(int)p->getObs()); 
+      texfile_summary << Form("%3.1f %3.1f %3.1f \n",p->getPred(),p->getPESpread(),p->getPtRes()); 
+      cut += 0.05;
+    }
+  }
+}
+}
+
+  texfile_summary.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+
+void htmlScript(string message){
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  htmlfile.open(Form("%s/viewPlots.html",plot_locations));
+  htmlfile << "<HTML> \n";
+  htmlfile << "<HEAD> </HEAD>\n";
+  htmlfile << "<BODY> \n";
+  htmlfile << "<CENTER><H2 style=\"color:red\">Jet mass template method </H2> \n";
+  htmlfile << "<H3>" << message.c_str() << "</H3> \n";
+  htmlfile << "<TABLE border=3> \n";
+  htmlfile << "<TR><TH colspan=4 align=center><H3>Estimation</H3></TH></TR> \n"; 
+  //5j 4j n4j 3j
+  //  b0 b1 b9
+  //   VR SR
+  vector<char*> jet_vec = {(char*)"5j",(char*)"4j",(char*)"n4j",(char*)"3j"};
+  vector<char*> reg_vec = {(char*)"VR",(char*)"SR"};
+  char region1[50];
+  char region2[50];
+  char plotname[100];
+
+  for(int j = 0; j < 4; j++){
+    for(int k = 0; k < 3; k++){
+      htmlfile << "<TR> \n";
+      for(int r = 0; r < 2; r++){
+        sprintf(region1,"%s%s_b%i",jet_vec[j],reg_vec[r],btag[k]);
+        sprintf(region2,"%s%sb%i",jet_vec[j],reg_vec[r],btag[k]);
+        sprintf(plotname,"plot_MJ_%s_%s_%s_NS",SR_cut_str,region1,p->getName().c_str());
+
+        htmlfile << "<TD><CENTER><img src=\"";
+        htmlfile << region1 << "/" << plotname << ".png\" height=\"600\" width=\"800\"><BR>";
+        htmlfile << "(<a href=\"" <<region1 << "/" << plotname << ".pdf\"> " << region2 << "</a>) </CENTER></TD> \n";
+      }
+      htmlfile << "</TR> \n";
+    }
+  }
+
+  htmlfile << "</TABLE></CENTER> \n";
+  htmlfile << "</BODY> \n";
+  htmlfile << "</HTML> \n";
+  htmlfile.close();
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+}
+
+/*************************************************************************************************/
+/****************************************** LOOPING MACROS ***************************************/
+/*************************************************************************************************/
+
+void plotMJ_and_SRpredictions(bool drawSig=false){
+  //loop macro to plot compare_MJs() output in all regions
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+
+  texfile.open(Form("%s/Predictions_%s_%s.tex",plot_locations,p->getName().c_str(),SR_cut_str));
+  texfile << "\\documentclass[11pt]{article} \n";
+  texfile << "\\usepackage{amsmath} \n \n";
+  texfile << "\\begin{document} \n";
+  texfile << "\\centering\n \\begin{tabular}{c c c c c c}\n";
+  texfile << "$n_{\\text{jet}}$ & b-tagging & $|\\Delta \\eta|$ cut & observed & predicted & (pred-obs)/obs\\\\[0.2em] \\hline \n";
+
+  for(int jets = 3; jets < 5; jets++){
+    for(int k = 0; k <3; k++){
+      compare_MJs("SR",jets,btag[k],0);
+      compare_MJs("VR",jets,btag[k],0);
+    }
+  }
+  
+  for(int jets = 4; jets <= 5; jets++){
+    for(int k = 0; k <3; k++){
+      compare_MJs("SR",jets,btag[k],1);
+      compare_MJs("VR",jets,btag[k],1);
+    }
+  }
+
+  texfile << "\\hline \n \\end{tabular} \n \\end{document}";
+  texfile.close();
+
+  if(drawSig){
+    for(int jets = 3; jets < 5; jets++){
+      for(int k = 0; k <3; k++){
+        compare_MJs_wSig("SR",jets,btag[k],0);
+        compare_MJs_wSig("VR",jets,btag[k],0);
+      }
+    }
+  
+    for(int jets = 4; jets <= 5; jets++){
+      for(int k = 0; k <3; k++){
+        compare_MJs_wSig("SR",jets,btag[k],1);
+        compare_MJs_wSig("VR",jets,btag[k],1);
+      }
+    }
+  }
+
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+  return;
+}
+
+void plotMass(int etaCut = 0){
+  //loop macro to plot compare_Mass() output in all regions.
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  /*for(int i = 3; i < 5 ; i++){
+    for(int jet = 1; jet < 5; jet++){
+      for(int k = 0; k < 3; k++){
+        if(i ==3 && jet == 4) continue;
+        compare_Mass("VR",jet,i,btag[k],0,etaCut);
+        compare_Mass("SR",jet,i,btag[k],0,etaCut);
+      }
+    }
+  }*/
+
+  for(int i = 4; i < 6 ; i++){
+    for(int jet = 1; jet < 5; jet++){
+      for(int k = 0; k < 3; k++){
+        compare_Mass("VR",jet,i,btag[k],1,etaCut);
+        compare_Mass("SR",jet,i,btag[k],1,etaCut);
+      }
+    }
+  }  
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+  return;
+}
+
+void plotAltPredictions(){
+  //loop macro to plot compare_Mass() output in all regions.
+  //  sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  /*for(int i = 3; i < 5 ; i++){
+    for(int k = 0; k < 3; k++){
+      compare_Predictions("VR",jet,i,btag[k],0);
+      compare_Predictions("SR",jet,i,btag[k],0);
+    }
+  }
+  */
+  for(int i = 4; i < 6 ; i++){
+    for(int k = 0; k < 3; k++){
+      compare_Predictions("VR",i,btag[k],1);
+      compare_Predictions("SR",i,btag[k],1);
+    }
+  }  
+  if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+  return;
+}
+
+void confNote(){
+  //Only specific plots, in .C form.
+  cout << "Make sure individual plotting macros are outputing .C files!" << endl;
+
+  sprintf(plot_locations,"%s_conf_note",plot_locations);
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  for(int j = 4; j < 6; j++){
+    for(int k = 1; k < 3; k++){
+      compare_MJs_wSig("VR",j,btag[k],1);
+      compare_MJs_wSig("SR",j,btag[k],1);
+      for(int jet = 1; jet < 5; jet ++){        
+        compare_Mass("VR",jet,j,btag[k],1,1);
+        compare_Mass("SR",jet,j,btag[k],1,1);
+        compare_Mass("VR",jet,j,btag[k],1,2);
+        compare_Mass("SR",jet,j,btag[k],1,2);
+      }
+    }
+  }
+
+if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
+return;
+}
+
+int bkgPredTools(){
+  sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
+
+  SR_cut = 0.8;
+
+  string source = "pythia_BDT";
+
+  sprintf(SR_cut_str,"SR_cut_%igev",(int)(SR_cut*1e3));
+
+  sprintf(dateStr,"10_04");
+  //lumi = 13.277; //DS2
+  //lumi = 4.589; //PostD2
+  lumi = 14.784; //E3 --> ICHEP
+
+  isMC = true;
+
+  mc = new bkgPrediction("pythia",SR_cut,true);
+  mc->setLumi(lumi);
+
+  //  source = "dataE3_bMatched";
+  //source = "pythia_subjetTemplbMatchFix70";
+  //source = "sherpa_subjetTemplbMatchFix70";
+  //source = "ttbar_subjetTemplbMatchFix70";
+  //  source = "RPV6_subjetTemplbMatchFix70";
+
+  //sprintf(plot_locations,"plots");
+  sprintf(plot_locations,"/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/%s_%s",dateStr,source.c_str());
+  gROOT->ProcessLine(Form(".! mkdir %s",plot_locations));
+  
+  p = new bkgPrediction(source,SR_cut,isMC);
+  p->setLumi(lumi);
+  p->setPEs(100);
+  //scanTableText("SR");
+  //  confNote();
+
+  //plotAltPredictions();
+  //compareYield(0.6,13,"SR",5,1,1);
+  //compareYield(0.6,13,"SR",5,9,1);
+
+
+  return 0;
+}

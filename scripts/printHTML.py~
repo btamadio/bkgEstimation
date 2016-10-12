@@ -1,9 +1,0 @@
-#!/usr/bin/python
-output = '<HTML> 
-<HEAD> </HEAD>
-<BODY> 
-<CENTER><H2 style="color:red">Signal Injection Study </H2> 
-<H3>Prediction with 12.7 fb-1.</H3> 
-<TABLE border=3> 
-<TR><TH colspan=4 align=center><H3>Estimation</H3></TH></TR>'
-print output

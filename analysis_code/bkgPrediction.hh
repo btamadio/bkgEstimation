@@ -4,6 +4,13 @@
 #include <cstdlib>
 
 double GetMedian(TH1F* h){
+  //const int nq = 1; double xq[nq] = {0.5}; double yq[nq];
+  //h->GetQuantiles(nq,yq,xq);
+  //return yq[0];
+  return h->GetMean();
+}
+
+double calcMedian(TH1F* h){
   const int nq = 1; double xq[nq] = {0.5}; double yq[nq];
   h->GetQuantiles(nq,yq,xq);
   return yq[0];
@@ -236,10 +243,25 @@ void bkgPrediction::runPredictionAndHist(bool incl, int njets, string reg,int bt
   h_dressMJ = new TH1F(Form("h_dress_%s",source.c_str()),"h_dress_nom",N_MJ_bins,MJ_bins);
   h_dressMJ_up = new TH1F(Form("h_dress_up_%s",source.c_str()),"h_dress_syst_up",N_MJ_bins,MJ_bins);
   h_dressMJ_down = new TH1F(Form("h_dress_down_%s",source.c_str()),"h_dress_syst_down",N_MJ_bins,MJ_bins);
+
+  // TCanvas c_nom("c_nom");
+  //  c_nom.Print("result_nom.pdf[");
+//  TCanvas c_up("c_up");
+//  c_up.Print("result_up.pdf[");
+//  TCanvas c_down("c_down");
+//  c_down.Print("result_down.pdf[");
   for(int bin = 1; bin <= N_MJ_bins; bin++){
+    int xMax = 10;
+    int nBins = 100;
+    if (bin==1 || N_MJ_bins-bin < 2){
+      xMax = 1;
+    }
     TH1F* temp_bin = new TH1F("temp_bin","temp_bin",1e7,0,1e7);
     TH1F* temp_bin_up = new TH1F("temp_bin_up","temp_bin_up",1e7,0,1e7);
     TH1F* temp_bin_down = new TH1F("temp_bin_down","temp_bin_down",1e7,0,1e7);
+    //    TH1F* temp_bin = new TH1F("temp_bin","temp_bin",nBins,0,xMax);
+    //    TH1F* temp_bin_up = new TH1F("temp_bin_up","temp_bin_up",nBins,0,xMax);
+    //    TH1F* temp_bin_down = new TH1F("temp_bin_down","temp_bin_down",nBins,0,xMax);
     for(int PE = 1; PE <= PE_number; PE++){
       temp_bin->Fill(temp_MJs_var[PE]->GetBinContent(bin));
       temp_bin_up->Fill(temp_MJs_up_var[PE]->GetBinContent(bin));
@@ -265,9 +287,27 @@ void bkgPrediction::runPredictionAndHist(bool incl, int njets, string reg,int bt
     h_dressMJ->SetBinError(bin, total_uncert);
     h_dressMJ_up->SetBinError(bin, temp_bin_up->GetRMS());
     h_dressMJ_down->SetBinError(bin, temp_bin_down->GetRMS());
+    
+    //cout<<"\t nom mean = "<<temp_bin->GetMean()<<"\t nom median = "<<calcMedian(temp_bin)<<endl;
+    //    cout<<"\t up mean = "<<temp_bin_up->GetMean()<<"\t up median = "<<calcMedian(temp_bin_up)<<endl;
+    //    cout<<"\t down mean = "<<temp_bin_down->GetMean()<<"\t down median = "<<calcMedian(temp_bin_down)<<endl;
+    // c_nom.cd();
+    
+    // temp_bin->Draw();
+    // c_nom.Print("result_nom.pdf");
 
-    delete temp_bin; delete temp_bin_up; delete temp_bin_down;
+    // c_up.cd();
+    // temp_bin_up->Draw();
+    // c_up.Print("result_up.pdf");
+
+    // c_down.cd();
+    // temp_bin_down->Draw();
+    // c_down.Print("result_down.pdf");
+    delete temp_bin; delete temp_bin_up; delete temp_bin_down; 
   }
+  //  c_nom.Print("result_nom.pdf]");
+  //  c_up.Print("result_up.pdf]");
+  //  c_down.Print("result_down.pdf]");
   for(int PE = 1; PE <= PE_number; PE++) {
     delete temp_MJs_var[PE];
     delete temp_MJs_up_var[PE];

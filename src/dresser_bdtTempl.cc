@@ -34,7 +34,7 @@ int main (int argc, char **argv){
   nameHistos();
 
   get_event(0);
-  //  bool isMC = p->isMC;
+  bool isMC = p->isMC;
   //Assumes that kinematic and training samples are either both MC or both data. 
 
   int PE_loop = config.PE;
@@ -53,9 +53,9 @@ int main (int argc, char **argv){
       for(int j = 0; j < nPtBins; j++){
         hname = Form("templ_b%i_bdtBin%i_ptBin%i",b_tag[k],i+1,j+1);
         h_mpt[k][i][j]= (TH1F*)file->Get(hname);
-	//if(isMC) fluctuateMCTemp(PE_loop,h_mpt[k][i][j]);
-        //if(!isMC) fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
-	fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
+	if(isMC) fluctuateMCTemp(PE_loop,h_mpt[k][i][j]);
+        if(!isMC) fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
+	//fluctuateDataTemp(PE_loop,h_mpt[k][i][j]);
       }
     }
   }

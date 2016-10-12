@@ -17,14 +17,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include "../aux/nominalMC.hh"
-#include "../aux/nominalData.hh"
-#include "../aux/outTree.hh"
+#include "../aux/nominalTree.hh"
 using namespace std;
 #include <sys/stat.h>
 
-//outTree *p;
-nominalMC *p;
+nominalTree *p;
 
 map<int,vector<pair<int,int> > >  m_GRL;
 string m_GRLFileName;
@@ -91,15 +88,90 @@ if(Run == 426142) Nevent = 436300.000000;
   if(Run == 423110) Nevent = 94700;
   if(Run == 423103) Nevent = 2883800;
 
-  //Signal
-  if(Run == 403555) Nevent = 20000;
-  if(Run == 403558) Nevent = 28000;
-  if(Run == 403560) Nevent = 20000;
-  if(Run == 403574) Nevent = 20000;
-  if(Run == 403608) Nevent = 20000;
+  //AFII Signal
+  if (Run == 403550) Nevent = 20000;    
+  if (Run == 403551) Nevent = 20000;    
+  if (Run == 403552) Nevent = 20000;    
+  if (Run == 403553) Nevent = 78000;
+  if (Run == 403554) Nevent = 30000; 
+  if (Run == 403555) Nevent = 20000;   
+  if (Run == 403556) Nevent = 20000;   
+  if (Run == 403557) Nevent = 78000;
+  if (Run == 403558) Nevent = 28000;   
+  if (Run == 403559) Nevent = 20000;  
+  if (Run == 403560) Nevent = 20000;  
+  if (Run == 403561) Nevent = 20000;   
+  if (Run == 403562) Nevent = 20000;  
+  if (Run == 403563) Nevent = 20000;
+  if (Run == 403564) Nevent = 20000;
+  if (Run == 403565) Nevent = 20000;
+  if (Run == 403566) Nevent = 20000;
+  if (Run == 403567) Nevent = 20000;
+  if (Run == 403568) Nevent = 20000;
+  if (Run == 403569) Nevent = 20000;
+  if (Run == 403570) Nevent = 19000;
+  if (Run == 403571) Nevent = 20000;
+  if (Run == 403572) Nevent = 20000;
+  if (Run == 403573) Nevent = 20000;
+  if (Run == 403574) Nevent = 20000;
+  if (Run == 403575) Nevent = 20000;
+  if (Run == 403576) Nevent = 20000;
+  if (Run == 403577) Nevent = 20000;
+  if (Run == 403578) Nevent = 20000;
+  if (Run == 403579) Nevent = 20000;
+  if (Run == 403580) Nevent = 20000;
+  if (Run == 403581) Nevent = 20000;
+  if (Run == 403582) Nevent = 20000;
+  if (Run == 403583) Nevent = 20000;
+  if (Run == 403584) Nevent = 20000;
+  if (Run == 403585) Nevent = 20000;
+  if (Run == 403586) Nevent = 20000;
+  if (Run == 403587) Nevent = 20000;
+  if (Run == 403588) Nevent = 20000;
+  if (Run == 403589) Nevent = 20000;
+  if (Run == 403590) Nevent = 20000;
+  if (Run == 403591) Nevent = 20000;
+  if (Run == 403592) Nevent = 20000;
+  if (Run == 403593) Nevent = 20000;
+  if (Run == 403594) Nevent = 20000;
+  if (Run == 403595) Nevent = 20000;
+  if (Run == 403596) Nevent = 20000;
+  if (Run == 403597) Nevent = 20000;
+  if (Run == 403598) Nevent = 20000;
+  if (Run == 403599) Nevent = 19000;
+  if (Run == 403600) Nevent = 20000;
+  if (Run == 403601) Nevent = 20000;
+  if (Run == 403602) Nevent = 20000;
+  if (Run == 403603) Nevent = 20000;
+  if (Run == 403604) Nevent = 19000;
+  if (Run == 403605) Nevent = 80000;
+  if (Run == 403606) Nevent = 80000;
+  if (Run == 403607) Nevent = 40000;
+  if (Run == 403608) Nevent = 20000;
+  if (Run == 403609) Nevent = 19000;
+  if (Run == 403610) Nevent = 20000;
+  if (Run == 403611) Nevent = 20000;
+  if (Run == 403612) Nevent = 20000;
+  if (Run == 403613) Nevent = 20000;
+  if (Run == 403614) Nevent = 20000;
+  
+  //FullSim Signal
+  // if (Run == 403558) Nevent = 30000;
+  // if (Run == 403560) Nevent = 20000;
+  // if (Run == 403563) Nevent = 20000;
+  // if (Run == 403571) Nevent = 19000;
+  // if (Run == 403573) Nevent = 19000;
+  // if (Run == 403578) Nevent = 20000;
+  // if (Run == 403587) Nevent = 20000;
+  // if (Run == 403589) Nevent = 19000;
+  // if (Run == 403595) Nevent = 20000;
+  // if (Run == 403605) Nevent = 77000;
+  // if (Run == 403610) Nevent = 20000;
 
   if(Run == 341271) Nevent = 951800.0;
 
+  if(Run == 403577) Nevent = 20000;
+  if(Run == 403578) Nevent = 20000;
   //  ttbar.EXOT3.txt
   if(Run == 410039) Nevent = 7666400.000000;
   if(Run == 410044) Nevent = 7974000.000000;

@@ -235,9 +235,9 @@ void compare_MJs(string reg,int njets, int btag,bool incl){
   region = Form("%s%ij%s_b%i",excStr.c_str(),njets,reg.c_str(),btag);
 
   char save_name[300]; 
-  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_NS.pdf",plot_locations,region,SR_cut_str,region,source.c_str());
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_Mean.pdf",plot_locations,region,SR_cut_str,region,source.c_str());
   c_1->SaveAs(save_name);
-  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_NS.png",plot_locations,region,SR_cut_str,region,source.c_str());
+  sprintf(save_name,"%s/%s/plot_MJ_%s_%s_%s_Mean.png",plot_locations,region,SR_cut_str,region,source.c_str());
   c_1->SaveAs(save_name);
 
   if(!incl) texfile << Form("%i &",njets);
@@ -491,6 +491,7 @@ void compare_MJs_wSig(string reg,int njets, int btag,bool incl){
 
   return;
 }
+ 
 
 void compare_MJs_wPtRes(string reg,int njets, int btag,bool incl){
 
@@ -1616,7 +1617,8 @@ void templateStats(int btag, int softJet = 0){
   char hist_locations[200];
   char f_kinematic[300];
   char templ[100];
-  double bdtBins[15] = {-1.0,-0.9,-0.85,-0.8,-0.75,-0.7,-0.6,-0.5,-0.3,-0.1,0.1,0.3,0.5,1.0};
+  double bdtBins[4] = {-1.0,0.0,0.3,1.0};
+ //double bdtBins[15] = {-1.0,-0.9,-0.85,-0.8,-0.75,-0.7,-0.6,-0.5,-0.3,-0.1,0.1,0.3,0.5,1.0};
   //double ptBins[9] = {0.2,0.244,0.293,0.364,0.445,0.52,0.6,0.733,0.896};
 
   char* region = Form("CR_b%i",btag);
@@ -1646,7 +1648,7 @@ void templateStats(int btag, int softJet = 0){
   cout<<"axis titles set"<<endl;
   
   TCanvas *c_1 = new TCanvas("c_1","c_1");
-  c_1->SetGridy();
+  //  c_1->SetGridy();
   
   gStyle->SetPaintTextFormat("3.0f");
   h_grid->SetMarkerSize(1.5);
@@ -1713,21 +1715,28 @@ void drawTemplates(int ptBin, int btag){
   TFile *f_kin = TFile::Open(f_kinematic);
 
   TH2F *h_grid = (TH2F*)f_kin->Get(Form("templGrid_b%i",btag));
-  TH1F* h_temp[4];
-
-  for(int i = 0; i < 4; i ++){
+  nBDTbins = 3;
+  vector<TH1F*> h_temp;
+  for(int i = 0; i < nBDTbins; i ++){
     sprintf(templname,"templ_b%i_bdtBin%i_ptBin%i",btag,i+1,ptBin);
-    
-    h_temp[i] = (TH1F*)f_kin->Get(templname);
-    h_temp[i]->Scale(1/h_temp[i]->Integral());
-    h_temp[i]->SetLineColor(i+1);
+    h_temp.push_back((TH1F*)f_kin->Get(templname));
+    if (h_temp.at(i)->Integral() > 0){
+      h_temp.at(i)->Scale(1/h_temp.at(i)->Integral());
+    }
+    if (i<8){
+      h_temp.at(i)->SetLineColor(i+1);
+    }
+    else{
+      h_temp.at(i)->SetLineColor(i+1);
+    }
+    h_temp.at(i)->SetMarkerSize(0);
+    //    h_temp.at(i)->Rebin(2);
   }
 
-  TH1F* h_ratio[3];
-  for(int i = 0; i < 3; i++){
-    h_ratio[i] = (TH1F*)h_temp[i+1]->Clone(Form("ratio_%i",i+2));
-    h_ratio[i]->Divide(h_temp[0]);
-    h_ratio[i]->SetLineColor(i+2);
+  vector<TH1F*> h_ratio;
+  for(int i = 0; i < nBDTbins-1; i++){
+    h_ratio.push_back((TH1F*)h_temp.at(i+1)->Clone(Form("ratio_%i",i+2)));
+    h_ratio.at(i)->Divide(h_temp.at(i));
   }
 
   TCanvas *c_1 = new TCanvas("c_1","c_1");
@@ -1741,51 +1750,52 @@ void drawTemplates(int ptBin, int btag){
   c_1->GetPad(2)->SetBottomMargin(0.31);
   
   c_1->cd(1);
-  h_temp[0]->GetXaxis()->SetRangeUser(-7,0);
-  h_temp[0]->GetYaxis()->SetRangeUser(0,1.1*h_temp[0]->GetMaximum());
-  h_temp[0]->GetYaxis()->SetTitle("Events (Normalized)");
-  h_temp[0]->GetYaxis()->SetTitleSize(18);
-  h_temp[0]->GetYaxis()->SetTitleFont(43);
-  h_temp[0]->GetYaxis()->SetTitleOffset(1.2);
-  h_temp[0]->GetYaxis()->SetLabelSize(0.06);
-  h_temp[0]->GetXaxis()->SetLabelOffset(999);
-  h_temp[0]->GetXaxis()->SetLabelSize(0);
-  h_temp[0]->Draw("hist");
-  h_temp[1]->Draw("histsame");
-  h_temp[2]->Draw("histsame");
-  h_temp[3]->Draw("histsame");
 
+  h_temp.at(0)->GetXaxis()->SetRangeUser(-7,0);
+  h_temp.at(0)->GetYaxis()->SetRangeUser(0,1.5*h_temp.at(0)->GetMaximum());
+  h_temp.at(0)->GetYaxis()->SetTitle("Events (Normalized)");
+  h_temp.at(0)->GetYaxis()->SetTitleSize(18);
+  h_temp.at(0)->GetYaxis()->SetTitleFont(43);
+  h_temp.at(0)->GetYaxis()->SetTitleOffset(1.2);
+  h_temp.at(0)->GetYaxis()->SetLabelSize(0.06);
+  h_temp.at(0)->GetXaxis()->SetLabelOffset(999);
+  h_temp.at(0)->GetXaxis()->SetLabelSize(0);
+
+  for(int i = 0; i<h_temp.size();i++){
+    if (i==0){ h_temp.at(i)->Draw("e hist"); }
+    else {h_temp.at(i)->Draw("e hist same");}
+  }
   c_1->cd(2);
-  h_ratio[0]->GetXaxis()->SetRangeUser(-7,0);
-  h_ratio[0]->GetYaxis()->SetRangeUser(0,2.0);
-  h_ratio[0]->GetXaxis()->SetTitle("log(m/pt)");
-  h_ratio[0]->GetYaxis()->SetTitle(". / BDT score = <0.9");
 
-  h_ratio[0]->GetYaxis()->SetTitleSize(18);
-  h_ratio[0]->GetYaxis()->SetTitleFont(43);
-  h_ratio[0]->GetYaxis()->SetTitleOffset(1.);
-  h_ratio[0]->GetYaxis()->SetLabelFont(43);
-  h_ratio[0]->GetYaxis()->SetLabelSize(18);
-  h_ratio[0]->GetYaxis()->SetNdivisions(5);
-  h_ratio[0]->GetXaxis()->SetTitleSize(18);
-  h_ratio[0]->GetXaxis()->SetTitleFont(43);
-  h_ratio[0]->GetXaxis()->SetTitleOffset(3.6);
-  h_ratio[0]->GetXaxis()->SetLabelFont(43);
-  h_ratio[0]->GetXaxis()->SetLabelSize(18);
-  h_ratio[0]->SetTitle("");
-  h_ratio[0]->Draw("hist");
-  h_ratio[1]->Draw("histsame");
-  h_ratio[2]->Draw("histsame");
-  
+  for(int i = 0; i < h_ratio.size();i++){
+    h_ratio.at(i)->GetXaxis()->SetRangeUser(-7,0);
+    h_ratio.at(i)->GetYaxis()->SetRangeUser(0,2.0);
+    h_ratio.at(i)->GetXaxis()->SetTitle("log(m/pt)");
+    h_ratio.at(i)->GetYaxis()->SetTitle(". / BDT bin 1");
+    
+    h_ratio.at(i)->GetYaxis()->SetTitleSize(18);
+    h_ratio.at(i)->GetYaxis()->SetTitleFont(43);
+    h_ratio.at(i)->GetYaxis()->SetTitleOffset(1.);
+    h_ratio.at(i)->GetYaxis()->SetLabelFont(43);
+    h_ratio.at(i)->GetYaxis()->SetLabelSize(18);
+    h_ratio.at(i)->GetYaxis()->SetNdivisions(5);
+    h_ratio.at(i)->GetXaxis()->SetTitleSize(18);
+    h_ratio.at(i)->GetXaxis()->SetTitleFont(43);
+    h_ratio.at(i)->GetXaxis()->SetTitleOffset(3.6);
+    h_ratio.at(i)->GetXaxis()->SetLabelFont(43);
+    h_ratio.at(i)->GetXaxis()->SetLabelSize(18);
+    h_ratio.at(i)->SetTitle("");
+
+    if (i==0) {h_ratio.at(i)->Draw("e hist");}
+    else {h_ratio.at(i)->Draw("e histsame");}
+  }
   c_1->cd(1);
 
+  ATLASLabel(0.6,0.85,"Internal",0.06,0.10);
+  TLegend *leg_1 = new TLegend(0.15,0.2,0.35,0.75);
 
-  ATLASLabel(0.6,0.9,"Internal",0.06,0.10);
-  TLegend *leg_1 = new TLegend(0.15,0.7,0.35,0.9);
-
-  for(int i = 0; i < 4; i++){
-    leg_1->AddEntry(h_temp[i],Form("BDT bin %i",i+1),"F");  
-
+  for(int i = 0; i < h_temp.size(); i++){
+    leg_1->AddEntry(h_temp.at(i),Form("BDT bin %i",i+1),"F");
   }
   
   leg_1->SetLineColor(0);
@@ -1800,21 +1810,20 @@ void drawTemplates(int ptBin, int btag){
   cap.SetTextColor(1);
   cap.SetTextSize(0.06);
 
- char jet_multi[100];
- double ptLow = h_grid->GetXaxis()->GetBinLowEdge(ptBin)*1e3;
- double ptHigh = h_grid->GetXaxis()->GetBinLowEdge(ptBin+1)*1e3;
+  char jet_multi[100];
+  double ptLow = h_grid->GetXaxis()->GetBinLowEdge(ptBin)*1e3;
+  double ptHigh = h_grid->GetXaxis()->GetBinLowEdge(ptBin+1)*1e3;
 
   sprintf(jet_multi, "%i GeV < p_{T} < %i GeV",(int)ptLow,(int)ptHigh);
-    if(ptBin ==  h_grid->GetNbinsX()){
-      sprintf(jet_multi,"p_{T} > %i GeV",(int)ptLow);
-    }
-  cap.DrawLatex(0.12,0.6,jet_multi);
+  if(ptBin ==  h_grid->GetNbinsX()){
+    sprintf(jet_multi,"p_{T} > %i GeV",(int)ptLow);
+  }
+  cap.DrawLatex(0.17,0.85,jet_multi);
 
   if(btag == 0){sprintf(jet_multi,"b-veto");}
   if(btag == 1){sprintf(jet_multi,"b-tag");}
   if(btag == 9){sprintf(jet_multi,"inclusive");}
-  cap.DrawLatex(0.25,0.5,jet_multi);
-
+  cap.DrawLatex(0.17,0.78,jet_multi);
 
   char save_name[300]; 
   sprintf(save_name,"%s/templates/templ_%s_ptBin%i_b%i_NS.pdf",plot_locations,source.c_str(),ptBin,btag);
@@ -2512,14 +2521,16 @@ void plotMass(int etaCut = 0){
     }
   }*/
 
-  for(int i = 4; i < 6 ; i++){
-    for(int jet = 1; jet < 5; jet++){
-      for(int k = 0; k < 3; k++){
-        compare_Mass("VR",jet,i,btag[k],1,etaCut);
-        compare_Mass("SR",jet,i,btag[k],1,etaCut);
-      }
+  //  for(int i = 4; i < 6 ; i++){
+  for(int jet = 1; jet < 5; jet++){
+    for(int k = 0; k < 2; k++){
+      compare_Mass("VR",jet,4,btag[k],0,etaCut);
+      compare_Mass("SR",jet,4,btag[k],0,etaCut);
+      compare_Mass("VR",jet,5,btag[k],1,etaCut);
+      compare_Mass("SR",jet,5,btag[k],1,etaCut);
     }
-  }  
+  }
+    //  }  
   if(strstr(plot_locations,"www")) gROOT->ProcessLine(Form(".! chmod -R 777 %s",plot_locations));
   return;
 }
@@ -2571,13 +2582,13 @@ return;
 int bkgPredTools(){
   sprintf(hist_locations,"/project/projectdirs/atlas/btamadio/RPV_SUSY/bkgEstimation");
 
-  SR_cut = 0.8;
+  SR_cut = 0.6;
 
-  string source = "pythia_BDT";
+  string source = "pythia_BDT_PtRatios";
 
   sprintf(SR_cut_str,"SR_cut_%igev",(int)(SR_cut*1e3));
 
-  sprintf(dateStr,"10_04");
+  sprintf(dateStr,"10_10");
   //lumi = 13.277; //DS2
   //lumi = 4.589; //PostD2
   lumi = 14.784; //E3 --> ICHEP

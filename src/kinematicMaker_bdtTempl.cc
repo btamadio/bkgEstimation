@@ -1,23 +1,21 @@
 #include "kinematicMaker_bdtTempl.hh"
 int main (int argc, char **argv){
 
-  if (argc < 2)
-    {
-      printf("\nUsage: %s *.root\n\n",argv[0]);
-      exit(0);
-    }
+  if (argc < 2){
+    printf("\nUsage: %s *.root\n\n",argv[0]);
+    exit(0);
+  }
   
   int const ind = argc - 2;
   TString *path = new TString[ind];
   char* configFile = (char*)argv[1];
   TChain *chain = new TChain("miniTree");
 
-       for ( int j = 0; j < argc-2; j++)
-       {
-         path[j] = (argv[j+2]); 
-         chain->Add(path[j]);
-       }
-
+  for ( int j = 0; j < argc-2; j++){
+    path[j] = (argv[j+2]); 
+    chain->Add(path[j]);
+  }
+  
   p = new miniTree(chain);
   Config config;
 
@@ -33,7 +31,6 @@ int main (int argc, char **argv){
   nameHistos();
   
   const int nBDTBins = (const int)(config.bdtBins.size()-1);
-  //  cout<<"nBDTBins = "<<nBDTBins<<endl;
   double *bdtBins = &(config.bdtBins[0]);
   const int nPtBins = (const int)(config.ptBins.size()-1);
   double *ptBins = &(config.ptBins[0]);
@@ -107,7 +104,7 @@ int main (int argc, char **argv){
 
     if(config.CRdef == 2) isCR = (njet == 3 && ((isVR && b_tag == 1) || b_tag==0) && p->njet_soft ==2 ); //3+soft jets templates
     if(config.CRdef == 3) isCR = (njet == 4 && isVR); //4jVRtempl
-    if(config.CRdef >= 4) isCR = (njet == 3 && ((isVR && b_tag == 1) || b_tag==0)); //b-matched templ
+    if(config.CRdef >= 4) isCR = (njet == 3);// && ((isVR && b_tag == 1) || b_tag==0)); //b-matched templ
 
     for(int n = 0; n < min(njet,4); n++){
       h_pt[b_tag][n]->Fill((*p->jet_pt)[n],wt);

@@ -4,14 +4,14 @@ ROOT.gROOT.LoadMacro('/global/homes/b/btamadio/atlasstyle/AtlasStyle.C')
 ROOT.gROOT.LoadMacro('/global/homes/b/btamadio/atlasstyle/AtlasLabels.C')
 ROOT.SetAtlasStyle()
 ROOT.gROOT.SetBatch()
-inFile = ROOT.TFile.Open('output.root')
-date ='10_10'
-name ='pythia_BDT_PtRatios'
 
+date ='10_10'
+name ='pythia_qgMatch'
+outName = 'pythia_BDT_PtRatios'
+inFile = ROOT.TFile.Open('output_'+name+'.root')
 def plotMpT(ptBin,bdtBin,bMatch):
     bdtBins = [-1.0,0.0,0.3,1.0]
     ptBins = [0.2,0.221,0.244,0.270,0.293,0.329,0.364,0.402,0.445,0.492,0.544,0.6,0.644,0.733,0.811,0.896]
-
     histName = 'h_pT_'+str(ptBin)+'_BDT_'+str(bdtBin)+'_b_'+str(bMatch)+'_njet_'
     hist3 = inFile.Get(histName+'3')
     hist4 = inFile.Get(histName+'4')
@@ -34,6 +34,7 @@ def plotMpT(ptBin,bdtBin,bMatch):
     leg.SetFillStyle(0)
     leg.SetTextSize(0.04)
     for i in range(len(hists)):
+        hists[i].Sumw2()
         denom = hists[i].Integral()
         if denom > 0:
             hists[i].Scale(1./denom)
@@ -54,7 +55,8 @@ def plotMpT(ptBin,bdtBin,bMatch):
         hists[i].GetXaxis().SetTitle('log(m/p_{T})')
         leg.AddEntry(hists[i],legLabels[i],'F')
     leg.Draw()
-    bLabs = ['non-b-matched','b-matched']
+#    bLabs = ['non-b-matched','b-matched']
+    bLabs = ['gluon-matched','quark-matched']
     bdtLab = str(bdtBins[bdtBin])+' < BDT < '+str(bdtBins[bdtBin+1])
     ptLab = 'p_{T} > 0.811 TeV'
     if ptBin < len(ptBins)-2:
@@ -63,6 +65,10 @@ def plotMpT(ptBin,bdtBin,bMatch):
     lat.DrawLatexNDC(0.4,0.85,ptLab)
     lat.DrawLatexNDC(0.4,0.75,bdtLab)
     lat.DrawLatexNDC(0.4,0.65,bLabs[bMatch])
+    if 'DS4' in name:
+        lat.DrawLatexNDC(0.2,0.55,'#sqrt{s} = 13 TeV, 28 fb^{-1}')
+    elif 'pythia' in name:
+        lat.DrawLatexNDC(0.2,0.55,'Pythia')
     can.cd()
     pad2 = ROOT.TPad('pad2','pad2',0,0.05,1,0.3)
     pad2.SetTopMargin(0)
@@ -90,12 +96,10 @@ def plotMpT(ptBin,bdtBin,bMatch):
         ratHist.GetXaxis().SetTitleOffset(3.8)
         ratHist.GetXaxis().SetLabelFont(43)
         ratHist.GetXaxis().SetLabelSize(15)
-
-
-    can.Print('/global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/'+date+'_'+name+'/'+histName+'compare.png')
+    can.Print('/global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/'+date+'_'+outName+'/'+histName+'compare_qgMatch.png')
 
 for i in range(15):
     for j in range(3):
         plotMpT(i,j,0)
         plotMpT(i,j,1)
-os.system('chmod a+r /global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/'+date+'_'+name+'/*')
+os.system('chmod a+r /global/project/projectdirs/atlas/www/multijet/RPV/btamadio/bkgEstimation/'+date+'_'+outName+'/*')

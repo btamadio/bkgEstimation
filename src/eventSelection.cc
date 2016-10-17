@@ -73,6 +73,7 @@ int main (int argc, char **argv)
     p -> fChain -> SetBranchStatus("weight_jet_SFFix70",1);
     p -> fChain -> SetBranchStatus("weight_jet_SFFix77",1);
     p -> fChain -> SetBranchStatus("weight_jet_SFFix85",1);
+    p -> fChain -> SetBranchStatus("jet_PartonTruthLabelID",1);
   }
   p -> fChain ->SetBranchStatus("jet_isFix60",1);
   p -> fChain ->SetBranchStatus("jet_isFix70",1);
@@ -107,6 +108,8 @@ int main (int argc, char **argv)
   vector<double> *mini_jet_eta= 0;
   vector<double> *mini_jet_phi = 0;
   vector<double> *mini_jet_m =0;
+  vector<int> *mini_jet_qmatched = 0;
+  vector<int> *mini_jet_gmatched = 0;
   vector<int> *mini_jet_bmatched_fix60 =0;
   vector<int> *mini_jet_bmatched_fix70 =0;
   vector<int> *mini_jet_bmatched_fix77 =0;
@@ -143,6 +146,8 @@ int main (int argc, char **argv)
   mini->Branch("jet_eta",&mini_jet_eta);
   mini->Branch("jet_phi",&mini_jet_phi);
   mini->Branch("jet_m",&mini_jet_m);
+  mini->Branch("jet_qmatched",&mini_jet_qmatched);
+  mini->Branch("jet_gmatched",&mini_jet_gmatched);
   mini->Branch("jet_bmatched_Fix60",&mini_jet_bmatched_fix60);
   mini->Branch("jet_bmatched_Fix70",&mini_jet_bmatched_fix70);
   mini->Branch("jet_bmatched_Fix77",&mini_jet_bmatched_fix77);
@@ -239,11 +244,22 @@ int main (int argc, char **argv)
       vector<double> bjet_fix70_phi;
       vector<double> bjet_fix77_phi;
       vector<double> bjet_fix85_phi;
+      
+      vector<TLorentzVector> qjet_fourMom;
+      vector<TLorentzVector> gjet_fourMom;
 
       for( int k = 0 ; k < njet ; k ++ ){
 	if( fabs((*p->jet_eta)[k]) > 2.8 ) continue ;
 	if( (*p->jet_pt)[k] < 50 ) continue ;
 	if((*p->jet_clean_passLooseBad)[k] == 0) continue;    
+	TLorentzVector thisJetFourMom;
+	thisJetFourMom.SetPtEtaPhiE(p->jet_pt->at(k)/1000.,p->jet_eta->at(k),p->jet_phi->at(k),p->jet_E->at(k)/1000.);
+	if( p->jet_PartonTruthLabelID->at(k) == 21 ){
+	  gjet_fourMom.push_back(thisJetFourMom);
+	}
+	if( abs(p->jet_PartonTruthLabelID->at(k)) >= 1 && abs(p->jet_PartonTruthLabelID->at(k)) <= 8){
+	  qjet_fourMom.push_back(thisJetFourMom);
+	}
 	ak4_counter++;
 	if((*p->jet_isFix60)[k]) {
 	  bjet_counter_fix60++;
@@ -362,6 +378,8 @@ int main (int argc, char **argv)
       mini_mmj = multiJetFourMom.M();
       //match to ak4 bjets
       double dEta, dPhi, dR;
+      vector<int> jet_qmatched;
+      vector<int> jet_gmatched;
       vector<int> jet_bmatched_fix60;
       vector<int> jet_bmatched_fix70;
       vector<int> jet_bmatched_fix77;
@@ -374,6 +392,37 @@ int main (int argc, char **argv)
 
       bool matched = false;
       for(int k = 0; k < mini_njet; k++){
+	//q-jets
+	TLorentzVector thisFatJetFourMom;
+	thisFatJetFourMom.SetPtEtaPhiM(jet_pt.at(k),jet_eta.at(k),jet_phi.at(k),jet_m.at(k));
+	//Find deltaR to nearest q-jet and nearest g-jet
+	float QdR = 999;
+	float GdR = 999;
+	for(unsigned int l = 0; l < qjet_fourMom.size(); l++){
+	  if(qjet_fourMom.at(l).DeltaR(thisFatJetFourMom) < 1.0 && qjet_fourMom.at(l).DeltaR(thisFatJetFourMom) < QdR){
+	    QdR = qjet_fourMom.at(l).DeltaR(thisFatJetFourMom);
+	  }
+	}
+	for(unsigned int l = 0; l < gjet_fourMom.size(); l++){
+	  if(gjet_fourMom.at(l).DeltaR(thisFatJetFourMom) < 1.0 && gjet_fourMom.at(l).DeltaR(thisFatJetFourMom) < GdR){
+	    GdR = gjet_fourMom.at(l).DeltaR(thisFatJetFourMom);
+	  }
+	}
+	bool qMatched = false;
+	bool gMatched = false;
+
+	if (QdR > 1.0 && GdR > 1.0){
+	  qMatched = false;
+	  gMatched = false;
+	}
+	else{
+	  if(QdR < GdR){ qMatched = true; }
+	  if(GdR < QdR){ gMatched = true; }
+	  if(GdR == QdR ) { gMatched = true; }
+	}
+	//	cout<<QdR<<"\t"<<GdR<<"\t"<<qMatched<<"\t"<<gMatched<<endl;;
+	jet_qmatched.push_back((int)qMatched);
+	jet_gmatched.push_back((int)gMatched);
 	//fix60
 	matched = false;
 	for(int l = 0; l < bjet_counter_fix60; l++){
@@ -509,6 +558,9 @@ int main (int argc, char **argv)
       mini_jet_bmatched_flt70 = &jet_bmatched_flt70;
       mini_jet_bmatched_flt77 = &jet_bmatched_flt77;
       mini_jet_bmatched_flt85 = &jet_bmatched_flt85;
+
+      mini_jet_qmatched = &jet_qmatched;
+      mini_jet_gmatched = &jet_gmatched;
 
       mini_jet_bmatched_fix60 = &jet_bmatched_fix60;
       mini_jet_bmatched_fix70 = &jet_bmatched_fix70;
